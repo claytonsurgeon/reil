@@ -19,8 +19,8 @@ pub enum Category {
 	Bracket,
 	Colon,
 	String,
-	Key,
-	Ref,
+	// Key,
+	Word,
 	Invalid,
 }
 
@@ -74,11 +74,11 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 				(Category::String, Regex::new(r#"^"[^"]*("|$)"#).unwrap()),
 
 
-				(Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[{])").unwrap()),
-				(Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[:])").unwrap()),
+				// (Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[{])").unwrap()),
+				// (Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[:])").unwrap()),
 
 
-				(Category::Ref, Regex::new(r"^[A-Za-z][A-Za-z0-9]*").unwrap()),
+				(Category::Word, Regex::new(r"^[A-Za-z][A-Za-z0-9]*").unwrap()),
 
 				(Category::Invalid, Regex::new(r"^.").unwrap()),
 			];
@@ -98,10 +98,11 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 					let token_text = &input[cursor..cursor + mat.end()];
 
 					match category {
-						Category::Key => {
-							let m = SPEC[26].1.find(token_text).unwrap().end();
-							tokens.push((*category, token_text[0..m].to_string()))
-						}
+						// Category::Key => {
+						// 	let m = SPEC[26].1.find(token_text).unwrap().end();
+						// 	tokens.push((*category, token_text[0..m].to_string()))
+						// }
+						Category::Skip => {}
 						_ => tokens.push((*category, token_text.to_string())),
 					}
 

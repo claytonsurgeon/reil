@@ -1,6 +1,10 @@
+// use regex::Regex;
 use std::env;
 use std::fs;
-use std::path;
+
+mod tokenizer;
+use tokenizer::tokenizer;
+// use std::path;
 
 // fn main() {
 // 	let filepath = "./example/test.reil";
@@ -18,6 +22,27 @@ use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
 use std::sync::mpsc::channel;
 
 fn main() {
+	// let re = Regex::new(r"^dec").unwrap();
+	// let text = "decode".to_string();
+	// let bob = &text[..3];
+
+	// // println!("Found match? {}", re.is_match(text));
+
+	// match re.find(&text) {
+	// 	Some(mat) => {
+	// 		// println!("Found match: {}", caps.get(0).unwrap().as_str())
+	// 		dbg!(&mat);
+	// 		let jef = &text[mat.end()..];
+	// 		dbg!(&jef);
+	// 		// dbg!(&text[mat.end as u32])
+	// 	}
+	// 	None => {
+	// 		println!("Could not find match");
+	// 	}
+	// }
+
+	// std::process::exit(0);
+
 	let args: Vec<String> = env::args().skip(1).collect();
 
 	if args.len() < 1 {
@@ -79,11 +104,8 @@ fn read_file(path: &String) {
 	};
 
 	// dbg!(entryfile);
-	tokenizer(&entryfile);
+	let tokens = tokenizer(&entryfile);
+	dbg!(&tokens);
 	// dbg!(entryfile);
 	// unimplemented!();
-}
-
-fn tokenizer(input: &String) {
-	println!("{}", input);
 }

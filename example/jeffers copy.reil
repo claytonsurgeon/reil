@@ -1,0 +1,30 @@
+
+
+a:22
+b: 22
+
+duck {
+	j: 10
+}
+
+// quad {
+// 	a = 1, b = 5, c = 3,
+// 	discriminant = b^2 - 4*a*c
+// 	square = sqrt(x = discriminant)
+// 	denominator = 2*a
+
+// 	neg = (-b - square) / denominator
+// 	pos = (-b + square) / denominator
+// }
+
+// quad {
+// 	a: 1, b: 5, c: 3,
+// 	discriminant: b^2 - 4*a*c
+// 	square: sqrt(x: discriminant)
+// 	denominator: 2*a
+
+// 	neg: (-b - square) / denominator
+// 	pos: (-b + square) / denominator
+// }
+
+// result = quad(a = 10, b = 20, c = 1)

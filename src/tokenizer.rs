@@ -30,8 +30,9 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 		static ref SPEC: Vec<(Category, Regex)> =
 			vec![
 				// Whitespace
-				(Category::Newline, Regex::new(r"^\n").unwrap()),
-				(Category::Skip, Regex::new(r"^\s+").unwrap()),
+				// (Category::Newline, Regex::new(r"^(\s|\t)*(\n|\r)+(\s|\t)*").unwrap()),
+				(Category::Newline, Regex::new(r"^(\n|\r)+").unwrap()),
+				(Category::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 
 				// Comments
 				(Category::Skip, Regex::new(r"^//.*").unwrap()),

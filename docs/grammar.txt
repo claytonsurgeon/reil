@@ -1,0 +1,152 @@
+
+
+
+
+
+
+Program:
+	|	Point-List
+	
+
+Point-List:
+	|	Point
+	|	Point  Point-List
+
+Point:
+	|	-> Expre }
+	|	Key (\n)? : (\n)? Expre [\n , }]
+	|	Key (\n)? : (\n)? Pattern (\n)? ~ (\n)? Expre  [\n , }]
+	|	Pattern (\n)? ~ (\n)? Expre  [\n , }]
+
+
+Expre:
+	|  Logical-OR-Expre
+
+
+Logical-OR-Expre:
+	|  Logical-AND-Expre
+	|	Logical-OR-Expre [|] Logical-AND-Expre
+
+
+Logical-AND-Expre:
+	|	Equality-Expre
+	|	Logical-AND-Expre [&] Equality-Expre
+
+
+Equality-Expre:
+	|	Relational-Expre
+	|	Equality-Expre [== !=] Relational-Expre
+	
+
+Relational-Expre:
+	|	Additive-Expre
+	|	Relational-Expre  [> < >= <=]  Additive-Expre
+	
+
+Additive-Expre:
+	|	Multiplicative-Expre
+	|	Additive-Expre  [+ -]  Multiplicative-Expre
+	
+
+Multiplicative-Expre:
+	|	Exponential-Expre
+	|	Multiplicative-Expre  [* /]  Exponential-Expre
+
+
+Exponential-Expre:
+	|	Unary-Expre
+	|	Multiplicative-Expre  [^]  Unary-Expre
+	
+
+Unary-Expre:
+	|	Left-Side-Expre
+	|	[+ -]  Unary-Expre
+	|	[!]  Unary-Expre
+	
+
+Left-Side-Expre:
+	|	Replicate-Select-Expre
+	
+
+Replicate-Select-Expre:
+	|	Select-Expre
+	|	Replicate-Expre
+	
+
+Replicate-Expre:
+	|	Original Argument
+	
+
+Original
+	|	Select-Expre
+	|	Replicate-Expre
+	
+
+Argument:
+	|	( Expre-List )
+	|	[ Expre-List ]
+	|	{ Point-List }
+	
+
+Expre-list:
+	|	Expre
+	|	Expre-List [,] Expre
+	
+
+Select-Expre
+	| Primary-Expre
+	| Select-Expre [.] Selector
+	
+
+Selector:
+	|	Identifier
+	|	NUMBER
+	|	( Expre-List )
+	|	[ Expre-List ]
+	|	{ Identifier-List }
+
+
+Identifier-List:
+	|	Identifier
+	|	Identifier-List [,] Identifier
+
+
+Primary-Expre:
+	|	Literal
+	|	Tuple-Expre
+	|	Array-Expre
+	|	Graph-Expre
+	|	Identifier
+	
+Tuple-Expre
+	|	( Expre-List )
+
+
+Array-Expre
+	|	[ Expre-List ]
+
+
+Graph-Expre
+	|	{ Point-List }
+	
+
+Literal
+	|	Numeric-Literal
+	|	String-Literal
+	|	Boolean-Literal
+
+
+Boolean-Literal
+	|	'true'
+	|	'false'
+	
+
+String-Literal
+	|	STRING
+	
+
+Numeric-Literal
+	|	NUMBER
+	
+
+

@@ -1,98 +1,79 @@
-// use regex::Regex;
 use std::env;
 use std::fs;
 
-mod tokenizer;
-use tokenizer::tokenizer;
-// use std::path;
+pub mod compiler;
+use compiler::{parser, tokenizer};
+use parser::AST;
+use tokenizer::Token;
 
-// fn main() {
-// 	let filepath = "./example/test.reil";
-// 	println!("In file {}", filepath);
-
-// 	let contents = fs::read_to_string(filepath)
-// 		.expect("Something went wrong reading the file");
-
-// 	println!("With text:\n{}", contents);
-// }
-
-// extern crate notify;
-
-use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
-use std::sync::mpsc::channel;
+// use notify::{raw_watcher, RawEvent, RecursiveMode, Watcher};
+// use std::sync::mpsc::channel;
 
 fn main() {
-	// let re = Regex::new(r"^dec").unwrap();
-	// let text = "decode".to_string();
-	// let bob = &text[..3];
-
-	// // println!("Found match? {}", re.is_match(text));
-
-	// match re.find(&text) {
-	// 	Some(mat) => {
-	// 		// println!("Found match: {}", caps.get(0).unwrap().as_str())
-	// 		dbg!(&mat);
-	// 		let jef = &text[mat.end()..];
-	// 		dbg!(&jef);
-	// 		// dbg!(&text[mat.end as u32])
-	// 	}
-	// 	None => {
-	// 		println!("Could not find match");
-	// 	}
-	// }
-
-	// std::process::exit(0);
-
 	let args: Vec<String> = env::args().skip(1).collect();
 
-	if args.len() < 1 {
-		eprintln!("Usage: reil.exe <source>");
+	if args.len() < 2 {
+		eprintln!("Usage: reil.exe <source> <target>");
 		std::process::exit(1);
 	}
 
-	read_file(&args[0]); // first run
+	// read_file(&args[0]); // first run
+	// compiler(&args[0], &args[1]);
+	let source = &args[0];
+	let target = &args[1];
+	event_router(notify::op::WRITE, source, target);
 
-	// Create a channel to receive the events.
-	let (tx, rx) = channel();
+	std::process::exit(0);
 
-	// Create a watcher object, delivering raw events.
-	// The notification back-end is selected based on the platform.
-	let mut watcher = raw_watcher(tx).unwrap();
+	// // Create a channel to receive the events.
+	// let (tx, rx) = channel();
 
-	// Add a path to be watched. All files and directories at that path and
-	// below will be monitored for changes.
-	watcher.watch(&args[0], RecursiveMode::Recursive).unwrap();
+	// // Create a watcher object, delivering raw events.
+	// // The notification back-end is selected based on the platform.
+	// let mut watcher = raw_watcher(tx).unwrap();
 
-	loop {
-		match rx.recv() {
-			Ok(RawEvent {
-				path: Some(path),
-				op: Ok(op),
-				cookie,
-			}) => {
-				println!("{:?} {:?} ({:?})", op, path, cookie);
-				event_router(
-					op,
-					&path.into_os_string().into_string().unwrap(),
-				);
-			}
-			Ok(event) => println!("broken event: {:?}", event),
-			Err(e) => println!("watch error: {:?}", e),
-		}
-	}
+	// // Add a path to be watched. All files and directories at that path and
+	// // below will be monitored for changes.
+	// watcher.watch(source, RecursiveMode::Recursive).unwrap();
+
+	// loop {
+	// 	match rx.recv() {
+	// 		Ok(RawEvent {
+	// 			path: Some(path),
+	// 			op: Ok(op),
+	// 			cookie,
+	// 		}) => {
+	// 			println!("{:?} {:?} ({:?})", op, path, cookie);
+	// 			event_router(op, source, target);
+	// 		}
+	// 		Ok(event) => println!("broken event: {:?}", event),
+	// 		Err(e) => println!("watch error: {:?}", e),
+	// 	}
+	// }
 }
 
-fn event_router(operation: notify::Op, path: &String) {
+fn event_router(operation: notify::Op, source: &String, target: &String) {
 	match operation {
 		notify::op::WRITE => {
-			read_file(path);
+			let input = read_file(source);
+			let tokens = tokenizer::tokenizer(&input);
+			let token_path = &mut target.clone();
+			token_path.push_str(&".tokens".to_string());
+			write_file(token_path, &token_string(&tokens));
+			//
+			let parse = parser::parser(&tokens);
+			let parse_path = &mut target.clone();
+			parse_path.push_str(&".ast".to_string());
+			write_file(parse_path, &ast_string(&parse));
+
+			// let parse_path = &target.clone().push_str(&".ast".to_string());
 		}
 		_ => {}
 	};
 }
 
-fn read_file(path: &String) {
-	let entryfile = match fs::read_to_string(path) {
+fn read_file(path: &String) -> String {
+	match fs::read_to_string(path) {
 		Ok(v) => v,
 		Err(e) => {
 			eprintln!(
@@ -101,11 +82,31 @@ fn read_file(path: &String) {
 			);
 			std::process::exit(1);
 		}
-	};
+	}
+}
 
-	// dbg!(entryfile);
-	let tokens = tokenizer(&entryfile);
-	dbg!(&tokens);
-	// dbg!(entryfile);
-	// unimplemented!();
+fn write_file(path: &String, data: &String) {
+	match fs::write(path, data) {
+		Ok(_v) => {
+			// dbg!(v);
+		}
+		Err(e) => {
+			eprintln!("Error: failed to write to file '{}': {:?}", path, e);
+			std::process::exit(1);
+		}
+	};
+}
+
+fn token_string(data: &Vec<Token>) -> String {
+	let mut output = String::new();
+	for group in data {
+		output.push_str(
+			&format!("{:<12} {:?}\n", format!("{:?}", group.0), group.1)[..],
+		)
+	}
+	output
+}
+
+fn ast_string(data: &AST) -> String {
+	format!("{:#?}", data)
 }

@@ -16,4 +16,7 @@ Ideally a programmer could use the language in manner similar to that of a termi
 
 Make it Work - January    
 Make it Good - February    
-Make it Fast - March    
+Make it Fast - March
+
+
+tokenize -> parse -> type check -> 

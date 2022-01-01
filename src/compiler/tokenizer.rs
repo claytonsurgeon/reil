@@ -4,7 +4,7 @@ use regex::Regex;
 // use std::fmt::Display;
 // use std::io::{self, Write};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Category {
 	Skip,
 	Newline,
@@ -12,11 +12,24 @@ pub enum Category {
 	Semicolon,
 	Arrow,
 	Number,
-	ReservedWord,
+	Reserved,
 	Operator,
-	Paren,
-	Squaren,
-	Bracket,
+
+	OR,
+	AND,
+	Equality,
+	Relational,
+	Additive,
+	Multiplicative,
+	Exponential,
+	Unary,
+
+	ParenOpen,
+	ParenClose,
+	SquarenOpen,
+	SquarenClose,
+	BracketOpen,
+	BracketClose,
 	Colon,
 	String,
 	// Key,
@@ -24,13 +37,13 @@ pub enum Category {
 	Invalid,
 }
 
+pub type Token = (Category, String);
+
 pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
-	// let mut spec: Vec<&Regex> = Vec::new();
 	lazy_static! {
 		static ref SPEC: Vec<(Category, Regex)> =
 			vec![
 				// Whitespace
-				// (Category::Newline, Regex::new(r"^(\s|\t)*(\n|\r)+(\s|\t)*").unwrap()),
 				(Category::Newline, Regex::new(r"^(\n|\r)+").unwrap()),
 				(Category::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 
@@ -51,22 +64,31 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 				(Category::Number, Regex::new(r"^\-?[0-9]+").unwrap()),
 
 				// Reserved Words
-				(Category::ReservedWord, Regex::new(r"^if\b").unwrap()),
-				(Category::ReservedWord, Regex::new(r"^else\b").unwrap()),
-				(Category::ReservedWord, Regex::new(r"^true\b").unwrap()),
-				(Category::ReservedWord, Regex::new(r"^false\b").unwrap()),
+				(Category::Reserved, Regex::new(r"^if\b").unwrap()),
+				(Category::Reserved, Regex::new(r"^else\b").unwrap()),
+				(Category::Reserved, Regex::new(r"^true\b").unwrap()),
+				(Category::Reserved, Regex::new(r"^false\b").unwrap()),
 
 				// Operators
+				(Category::OR, Regex::new(r"^\|").unwrap()),
+				(Category::AND, Regex::new(r"^\&").unwrap()),
+				(Category::Equality, Regex::new(r"^((==)|(=)|(!=))").unwrap()),
+				(Category::Relational, Regex::new(r"^((>=)|(<=)|(>)|(<))").unwrap()),
+				(Category::Additive, Regex::new(r"^((-)|(\+))").unwrap()),
+				(Category::Multiplicative, Regex::new(r"^((/)|(\*))").unwrap()),
+				(Category::Exponential, Regex::new(r"^(\^)").unwrap()),
+				(Category::Unary, Regex::new(r"^(!)").unwrap()),
+
 				(Category::Operator, Regex::new(r"^[.>~<!*=/%÷×·^'∘+-]+").unwrap()),
 				// parens
-				(Category::Paren, Regex::new(r"^\(").unwrap()),
-				(Category::Paren, Regex::new(r"^\)").unwrap()),
+				(Category::ParenOpen, Regex::new(r"^\(").unwrap()),
+				(Category::ParenClose, Regex::new(r"^\)").unwrap()),
 
-				(Category::Squaren, Regex::new(r"^\[").unwrap()),
-				(Category::Squaren, Regex::new(r"^\]").unwrap()),
+				(Category::SquarenOpen, Regex::new(r"^\[").unwrap()),
+				(Category::SquarenClose, Regex::new(r"^\]").unwrap()),
 
-				(Category::Bracket, Regex::new(r"^\{").unwrap()),
-				(Category::Bracket, Regex::new(r"^\}").unwrap()),
+				(Category::BracketOpen, Regex::new(r"^\{").unwrap()),
+				(Category::BracketClose, Regex::new(r"^\}").unwrap()),
 
 
 				(Category::Colon, Regex::new(r"^:").unwrap()),
@@ -85,26 +107,24 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 			];
 	}
 
-	dbg!(&SPEC[0]);
-
 	let mut tokens: Vec<(Category, String)> = Vec::new();
 	let mut cursor = 0;
 	// let mut line = 0;
 	let length = input.len();
 
 	'outer: while cursor < length {
-		for (category, re) in &SPEC[..] {
+		for (cat, re) in &SPEC[..] {
 			match re.find(&input[cursor..]) {
 				Some(mat) => {
 					let token_text = &input[cursor..cursor + mat.end()];
 
-					match category {
+					match cat {
 						// Category::Key => {
 						// 	let m = SPEC[26].1.find(token_text).unwrap().end();
-						// 	tokens.push((*category, token_text[0..m].to_string()))
+						// 	tokens.push((*Category, token_text[0..m].to_string()))
 						// }
 						Category::Skip => {}
-						_ => tokens.push((*category, token_text.to_string())),
+						_ => tokens.push((*cat, token_text.to_string())),
 					}
 
 					cursor += mat.end();
@@ -187,7 +207,7 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 // 	Skip,
 // 	Newline,
 // 	Number(String),
-// 	ReservedWord(ResWord),
+// 	Reserved(ResWord),
 // 	// ChildSelector,
 // 	// ParentSelector,
 // 	Operator(String, i32),

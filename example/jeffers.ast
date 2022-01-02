@@ -1,89 +1,21 @@
-Graph(
+Point(
     "Program",
-    [
-        Point(
-            "b",
-            Binary(
-                OR,
-                Empty,
-                Unary(
-                    NEG,
-                    Empty,
-                ),
-            ),
-        ),
-        Point(
-            "a",
-            Binary(
-                OR,
+    Graph(
+        [
+            Point(
+                "a",
                 Binary(
-                    AND,
-                    Binary(
-                        ADD,
-                        Binary(
-                            DIV,
-                            Unary(
-                                ABS,
-                                Empty,
-                            ),
-                            Empty,
-                        ),
-                        Binary(
-                            MUL,
-                            Empty,
-                            Binary(
-                                EXP,
-                                Empty,
-                                Empty,
-                            ),
-                        ),
+                    OR,
+                    Number(
+                        "10",
                     ),
-                    Binary(
-                        EQ,
-                        Binary(
-                            LT,
-                            Empty,
-                            Unary(
-                                NOT,
-                                Empty,
-                            ),
-                        ),
-                        Binary(
-                            ADD,
-                            Binary(
-                                EXP,
-                                Empty,
-                                Empty,
-                            ),
-                            Empty,
-                        ),
-                    ),
-                ),
-                Binary(
-                    AND,
-                    Binary(
-                        EQ,
-                        Unary(
-                            NEG,
-                            Empty,
-                        ),
-                        Binary(
-                            GE,
-                            Empty,
-                            Empty,
-                        ),
-                    ),
-                    Binary(
-                        NE,
-                        Empty,
-                        Binary(
-                            SUB,
-                            Empty,
-                            Empty,
-                        ),
+                    Number(
+                        "20",
                     ),
                 ),
             ),
-        ),
-    ],
+            Errooooor,
+            Errooooor,
+        ],
+    ),
 )

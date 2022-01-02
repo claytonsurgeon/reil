@@ -8,8 +8,8 @@ use regex::Regex;
 pub enum Category {
 	Skip,
 	Newline,
-	Comma,
-	Semicolon,
+	// Comma,
+	// Semicolon,
 	Arrow,
 	Number,
 	Reserved,
@@ -23,6 +23,11 @@ pub enum Category {
 	Multiplicative,
 	Exponential,
 	Unary,
+
+	Select, // graph.child
+	Parent, // graph..parent
+
+	Bool,
 
 	ParenOpen,
 	ParenClose,
@@ -44,7 +49,8 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 		static ref SPEC: Vec<(Category, Regex)> =
 			vec![
 				// Whitespace
-				(Category::Newline, Regex::new(r"^(\n|\r)+").unwrap()),
+				(Category::Newline, Regex::new(r"^(\n|\r|,|;)+").unwrap()),
+				// (Category::Newline, Regex::new(r"^(\n|\r|,|;)+").unwrap()),
 				(Category::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 
 				// Comments
@@ -52,8 +58,8 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 				(Category::Skip, Regex::new(r"^/\*[\s\S]*?\*/").unwrap()),
 
 				// Punctuation
-				(Category::Comma, Regex::new(r"^[,]").unwrap()),
-				(Category::Semicolon, Regex::new(r"^[;]").unwrap()),
+				// (Category::Comma, Regex::new(r"^[,]").unwrap()),
+				// (Category::Semicolon, Regex::new(r"^[;]").unwrap()),
 
 				// Function Arrow
 				(Category::Arrow, Regex::new(r"^→").unwrap()),
@@ -66,8 +72,8 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 				// Reserved Words
 				(Category::Reserved, Regex::new(r"^if\b").unwrap()),
 				(Category::Reserved, Regex::new(r"^else\b").unwrap()),
-				(Category::Reserved, Regex::new(r"^true\b").unwrap()),
-				(Category::Reserved, Regex::new(r"^false\b").unwrap()),
+				(Category::Bool, Regex::new(r"^true\b").unwrap()),
+				(Category::Bool, Regex::new(r"^false\b").unwrap()),
 
 				// Operators
 				(Category::OR, Regex::new(r"^\|").unwrap()),
@@ -78,6 +84,9 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 				(Category::Multiplicative, Regex::new(r"^((/)|(\*))").unwrap()),
 				(Category::Exponential, Regex::new(r"^(\^)").unwrap()),
 				(Category::Unary, Regex::new(r"^(!)").unwrap()),
+
+				(Category::Select, Regex::new(r"^[.][.]").unwrap()),
+				(Category::Select, Regex::new(r"^[.]").unwrap()),
 
 				(Category::Operator, Regex::new(r"^[.>~<!*=/%÷×·^'∘+-]+").unwrap()),
 				// parens

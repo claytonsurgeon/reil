@@ -100,7 +100,7 @@ Select-Expre
 
 Selector:
 	|	Identifier
-	|	NUMBER
+	//	|	NUMBER	//	annoying, graph.2 looks like graph 0.2, fix later
 	|	( Expre-List )
 	|	[ Expre-List ]
 	|	{ Identifier-List }
@@ -108,7 +108,7 @@ Selector:
 
 Identifier-List:
 	|	Identifier
-	|	Identifier-List [,] Identifier
+	|	Identifier-List [,]? Identifier
 
 
 Primary-Expre:

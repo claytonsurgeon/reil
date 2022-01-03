@@ -101,7 +101,12 @@ fn token_string(data: &Vec<Token>) -> String {
 	let mut output = String::new();
 	for group in data {
 		output.push_str(
-			&format!("{:<12} {:?}\n", format!("{:?}", group.0), group.1)[..],
+			&format!(
+				"{:<12} {:<12} {:?}\n",
+				format!("{:?}", group.0),
+				format!("{:?}", group.1),
+				group.2
+			)[..],
 		)
 	}
 	output

@@ -1,139 +1,195 @@
 use lazy_static::lazy_static;
 use regex::Regex;
-// use std::cmp::Ordering;
-// use std::fmt::Display;
-// use std::io::{self, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Category {
-	Skip,
-	Newline,
-	// Comma,
-	// Semicolon,
-	Arrow,
-	Number,
-	Reserved,
-	Operator,
-
-	OR,
-	AND,
-	Equality,
-	Relational,
-	Additive,
-	Multiplicative,
-	Exponential,
-	Unary,
-
-	Select, // graph.child
-	Parent, // graph..parent
-
-	Bool,
-
-	ParenOpen,
-	ParenClose,
-	SquarenOpen,
-	SquarenClose,
-	BracketOpen,
-	BracketClose,
-	Colon,
-	String,
-	// Key,
-	Word,
+pub enum Class {
 	Invalid,
+	Skip,
+	Stop,
+	//
+	// Colon,
+	Arrow,
+	Binary,
+	Unary,
+	Select,
+	//
+	Word,
+	Reserved,
+	//
+	Bool,
+	String,
+	Number,
+	//
+	Paren,
+	Squaren,
+	Bracket,
 }
 
-pub type Token = (Category, String);
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Name {
+	Invalid,
+	Skip,
+	Newline,
+	Comma,
+	//
+	Colon,
+	Pattern,
+	Arrow,
+	//
+	Or,
+	And,
+	Add,
+	Sub,
+	Mul,
+	Div,
+	Exp,
+	Not,
+	//
+	Eq,
+	Ne,
+	Gt,
+	Lt,
+	Ge,
+	Le,
+	//
+	Select,
+	Parent,
+	//
+	Word,
+	Reserved,
+	//
+	True,
+	False,
+	String,
+	Number,
+	//
+	ParenLF,
+	ParenRT,
+	SquarenLF,
+	SquarenRT,
+	BracketLF,
+	BracketRT,
+}
 
-pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
+// 0 is lowest precendence, 255 is highest
+// 255 is used for non binary operations
+
+pub fn precedence(token: &Token) -> u8 {
+	use Name::*;
+	match token.1 {
+		Colon => 0,
+		Arrow => 0,
+		Pattern => 1,
+		//
+		Or => 2,
+		And => 3,
+
+		Eq => 4,
+		Ne => 4,
+
+		Gt => 5,
+		Lt => 5,
+		Ge => 5,
+		Le => 5,
+
+		Add => 6,
+		Sub => 6,
+		Mul => 7,
+		Div => 7,
+		Exp => 8,
+		// Not => 9,
+		//
+		//
+		Select => 9,
+		Parent => 9,
+		_ => 0,
+	}
+}
+
+pub type Token = (Class, Name, String);
+
+pub fn tokenizer(input: &String) -> Vec<Token> {
 	lazy_static! {
-		static ref SPEC: Vec<(Category, Regex)> =
+		static ref SPEC: Vec<(Class, Name, Regex)> =
 			vec![
-				// Whitespace
-				(Category::Newline, Regex::new(r"^(\n|\r|,|;)+").unwrap()),
-				// (Category::Newline, Regex::new(r"^(\n|\r|,|;)+").unwrap()),
-				(Category::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
-
+				(Class::Stop, Name::Newline, Regex::new(r"^(\n|\r)+").unwrap()),
+				(Class::Stop, Name::Comma, Regex::new(r"^(,|;)+").unwrap()),
+				(Class::Skip, Name::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 				// Comments
-				(Category::Skip, Regex::new(r"^//.*").unwrap()),
-				(Category::Skip, Regex::new(r"^/\*[\s\S]*?\*/").unwrap()),
-
-				// Punctuation
-				// (Category::Comma, Regex::new(r"^[,]").unwrap()),
-				// (Category::Semicolon, Regex::new(r"^[;]").unwrap()),
+				(Class::Skip, Name::Skip, Regex::new(r"^//.*").unwrap()),
+				(Class::Skip, Name::Skip, Regex::new(r"^/\*[\s\S]*?\*/").unwrap()),
 
 				// Function Arrow
-				(Category::Arrow, Regex::new(r"^→").unwrap()),
-				(Category::Arrow, Regex::new(r"^->").unwrap()),
+				(Class::Arrow, Name::Arrow, Regex::new(r"^(->|→)").unwrap()),
 				// Numbers
-				(Category::Number, Regex::new(r"^\-?[0-9]+\.[0-9]*").unwrap()),
-				(Category::Number, Regex::new(r"^\-?[0-9]*\.[0-9]+").unwrap()),
-				(Category::Number, Regex::new(r"^\-?[0-9]+").unwrap()),
+				(Class::Number, Name::Number, Regex::new(r"^\-?[0-9]+\.[0-9]*").unwrap()),
+				(Class::Number, Name::Number, Regex::new(r"^\-?[0-9]*\.[0-9]+").unwrap()),
+				(Class::Number, Name::Number, Regex::new(r"^\-?[0-9]+").unwrap()),
 
 				// Reserved Words
-				(Category::Reserved, Regex::new(r"^if\b").unwrap()),
-				(Category::Reserved, Regex::new(r"^else\b").unwrap()),
-				(Category::Bool, Regex::new(r"^true\b").unwrap()),
-				(Category::Bool, Regex::new(r"^false\b").unwrap()),
+				(Class::Reserved, Name::Reserved, Regex::new(r"^if\b").unwrap()),
+				(Class::Reserved, Name::Reserved, Regex::new(r"^else\b").unwrap()),
 
+				(Class::Bool, Name::True, Regex::new(r"^true\b").unwrap()),
+				(Class::Bool, Name::False, Regex::new(r"^false\b").unwrap()),
 				// Operators
-				(Category::OR, Regex::new(r"^\|").unwrap()),
-				(Category::AND, Regex::new(r"^\&").unwrap()),
-				(Category::Equality, Regex::new(r"^((==)|(=)|(!=))").unwrap()),
-				(Category::Relational, Regex::new(r"^((>=)|(<=)|(>)|(<))").unwrap()),
-				(Category::Additive, Regex::new(r"^((-)|(\+))").unwrap()),
-				(Category::Multiplicative, Regex::new(r"^((/)|(\*))").unwrap()),
-				(Category::Exponential, Regex::new(r"^(\^)").unwrap()),
-				(Category::Unary, Regex::new(r"^(!)").unwrap()),
+				(Class::Binary, Name::Colon, Regex::new(r"^[:]").unwrap()),
+				(Class::Binary, Name::Pattern, Regex::new(r"^[~]").unwrap()),
+				(Class::Binary, Name::Or, Regex::new(r"^[|]").unwrap()),
+				(Class::Binary, Name::And, Regex::new(r"^[&]").unwrap()),
+				(Class::Binary, Name::Eq, Regex::new(r"^((==)|(=))").unwrap()),
+				(Class::Binary, Name::Ne, Regex::new(r"^(!=)").unwrap()),
+				(Class::Binary, Name::Ge, Regex::new(r"^(>=)").unwrap()),
+				(Class::Binary, Name::Le, Regex::new(r"^(<=)").unwrap()),
+				(Class::Binary, Name::Lt, Regex::new(r"^(>)").unwrap()),
+				(Class::Binary, Name::Le, Regex::new(r"^(<)").unwrap()),
+				(Class::Binary, Name::Add, Regex::new(r"^(\+)").unwrap()),
+				(Class::Binary, Name::Sub, Regex::new(r"^(-)").unwrap()),
+				(Class::Binary, Name::Mul, Regex::new(r"^(\*)").unwrap()),
+				(Class::Binary, Name::Div, Regex::new(r"^(/)").unwrap()),
+				(Class::Binary, Name::Exp, Regex::new(r"^(\^)").unwrap()),
+				(Class::Unary, Name::Not, Regex::new(r"^(!)").unwrap()),
+				(Class::Select, Name::Parent, Regex::new(r"^[.][.]").unwrap()),
+				(Class::Select, Name::Select, Regex::new(r"^[.]").unwrap()),
 
-				(Category::Select, Regex::new(r"^[.][.]").unwrap()),
-				(Category::Select, Regex::new(r"^[.]").unwrap()),
 
-				(Category::Operator, Regex::new(r"^[.>~<!*=/%÷×·^'∘+-]+").unwrap()),
+				// (Class::Operator, Regex::new(r"^[.>~<!*=/%÷×·^'∘+-]+").unwrap()),
 				// parens
-				(Category::ParenOpen, Regex::new(r"^\(").unwrap()),
-				(Category::ParenClose, Regex::new(r"^\)").unwrap()),
+				(Class::Paren, Name::ParenLF, Regex::new(r"^\(").unwrap()),
+				(Class::Paren, Name::ParenRT, Regex::new(r"^\)").unwrap()),
 
-				(Category::SquarenOpen, Regex::new(r"^\[").unwrap()),
-				(Category::SquarenClose, Regex::new(r"^\]").unwrap()),
+				(Class::Squaren, Name::SquarenLF, Regex::new(r"^\[").unwrap()),
+				(Class::Squaren, Name::SquarenRT, Regex::new(r"^\]").unwrap()),
 
-				(Category::BracketOpen, Regex::new(r"^\{").unwrap()),
-				(Category::BracketClose, Regex::new(r"^\}").unwrap()),
-
-
-				(Category::Colon, Regex::new(r"^:").unwrap()),
+				(Class::Bracket, Name::BracketLF, Regex::new(r"^\{").unwrap()),
+				(Class::Bracket, Name::BracketRT, Regex::new(r"^\}").unwrap()),
 
 
-				(Category::String, Regex::new(r#"^"[^"]*("|$)"#).unwrap()),
+				(Class::String, Name::String, Regex::new(r#"^"[^"]*("|$)"#).unwrap()),
 
 
-				// (Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[{])").unwrap()),
-				// (Category::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*(?:(\s)*[:])").unwrap()),
+				(Class::Word, Name::Word, Regex::new(r"^[A-Za-z][A-Za-z0-9]*").unwrap()),
 
-
-				(Category::Word, Regex::new(r"^[A-Za-z][A-Za-z0-9]*").unwrap()),
-
-				(Category::Invalid, Regex::new(r"^.").unwrap()),
+				(Class::Invalid, Name::Word, Regex::new(r"^.").unwrap()),
 			];
 	}
 
-	let mut tokens: Vec<(Category, String)> = Vec::new();
+	let mut tokens: Vec<Token> = Vec::new();
 	let mut cursor = 0;
 	// let mut line = 0;
 	let length = input.len();
 
 	'outer: while cursor < length {
-		for (cat, re) in &SPEC[..] {
+		for (class, name, re) in &SPEC[..] {
 			match re.find(&input[cursor..]) {
 				Some(mat) => {
 					let token_text = &input[cursor..cursor + mat.end()];
 
-					match cat {
-						// Category::Key => {
-						// 	let m = SPEC[26].1.find(token_text).unwrap().end();
-						// 	tokens.push((*Category, token_text[0..m].to_string()))
-						// }
-						Category::Skip => {}
-						_ => tokens.push((*cat, token_text.to_string())),
+					match class {
+						Class::Skip => {}
+						_ => {
+							tokens.push((*class, *name, token_text.to_string()))
+						}
 					}
 
 					cursor += mat.end();
@@ -144,7 +200,63 @@ pub fn tokenizer(input: &String) -> Vec<(Category, String)> {
 		}
 	}
 
-	tokens
+	let mut filtered_tokens: Vec<Token> = Vec::new();
+	let mut skip_initial_newlines = true;
+	let mut last_token_was_newline = false;
+	let mut last_token_was_comma = false;
+	let mut last_token_was_operator = false;
+	for token in tokens {
+		match token {
+			(Class::Stop, Name::Comma, _) => {
+				if last_token_was_newline {
+					filtered_tokens.pop();
+				}
+				filtered_tokens.push(token);
+				last_token_was_operator = false;
+				last_token_was_comma = true;
+				last_token_was_newline = false;
+			}
+			(Class::Stop, Name::Newline, _) => {
+				if !last_token_was_operator
+					&& !last_token_was_comma
+					&& !last_token_was_newline
+					&& !skip_initial_newlines
+				{
+					filtered_tokens.push(token);
+				}
+				last_token_was_operator = false;
+				last_token_was_comma = false;
+				last_token_was_newline = true;
+			}
+			(Class::Binary, _, _)
+			| (Class::Unary, _, _)
+			| (Class::Select, _, _)
+			| (Class::Arrow, _, _) => {
+				if last_token_was_newline {
+					filtered_tokens.pop();
+				}
+				filtered_tokens.push(token);
+				last_token_was_operator = true;
+				last_token_was_comma = false;
+				last_token_was_newline = false;
+			}
+			// (Class::Unary, _, _) | (Class::Select, _, _) => {
+			// 	filtered_tokens.push(token);
+			// 	last_token_was_operator = true;
+			// 	last_token_was_comma = false;
+			// 	last_token_was_newline = false;
+			// }
+			_ => {
+				filtered_tokens.push(token);
+				last_token_was_operator = false;
+				last_token_was_comma = false;
+				last_token_was_newline = false;
+				skip_initial_newlines = false;
+			}
+		}
+	}
+
+	filtered_tokens
 }
 
 // let re = Regex::new(r"^dec").unwrap();

@@ -1,4 +1,4 @@
-use super::tokenizer::{Kind, Meta, Name, Of, Token};
+use super::tokenizer::{Kind, Name, Token};
 use std::cell::RefCell;
 
 pub struct Tokens<'a> {
@@ -27,6 +27,7 @@ pub enum AST {
 	Return(Box<AST>),
 
 	Ref(String),
+	Refs(Vec<AST>),
 	Rep(Box<AST>, Box<AST>), // replicate
 
 	Binary(Name, Box<AST>, Box<AST>),
@@ -69,12 +70,21 @@ impl Tokens<'_> {
 			// let point = AST::Point(key_text, Box::new(AST::Nothing));
 			self.clear_stops();
 			Ok(point)
-		} else {
+		} else if self.is(0, Name::Arrow) {
 			self.eat(Name::Arrow)?;
 			let expression = self.expression()?;
 			self.clear_stops();
-			Ok(expression)
+			Ok(AST::Point("return".to_string(), Box::new(expression)))
+		} else {
+			let reference = &self.eat(Name::Ref)?.meta.text;
+			self.clear_stops();
+			Ok(AST::Point(
+				reference.clone(),
+				Box::new(AST::Ref(reference.clone())),
+			))
 		}
+
+		// add support for naked control flow expressions if, match, etc
 	}
 
 	fn expression(&self) -> Result<AST, String> {
@@ -184,10 +194,114 @@ impl Tokens<'_> {
 			let operator = self.eats(&[Name::Add, Name::Sub, Name::Not])?;
 			Ok(AST::Unary(operator.of.name, Box::new(self.unary_exp()?)))
 		} else {
-			// self.replicate_or_select()?
+			self.replicate_or_select()
 			// Ok(AST::Nothing)
-			Ok(self.literal()?)
+			// Ok(self.literal()?)
 		}
+	}
+
+	fn replicate_or_select(&self) -> Result<AST, String> {
+		let mut ret = self.select_exp()?;
+		if self.any(0, &[Name::ParenLF, Name::SquarenLF, Name::BracketLF]) {
+			ret = AST::Rep(Box::new(ret), Box::new(self.expression()?));
+		}
+		Ok(ret)
+		// }
+	}
+
+	fn select_exp(&self) -> Result<AST, String> {
+		let mut left = self.primary_exp()?;
+		while self.of(0, Kind::Select) {
+			let t = self.eat_of(Kind::Select)?;
+			left = AST::Binary(
+				t.of.name,
+				Box::new(left),
+				Box::new(self.selector()?),
+			);
+		}
+
+		Ok(left)
+	}
+	fn selector(&self) -> Result<AST, String> {
+		// self.skip()
+		// Err("fug".to_string())
+		match self.get(0) {
+			Some(t) => match t.of.name {
+				Name::ParenLF => self.tuple_exp(),
+				Name::SquarenLF => self.array_exp(),
+				Name::BracketLF => self.ref_list(&[Name::BracketRT]),
+				_ => self.reference(),
+			},
+			_ => self.literal(),
+		}
+		// self.reference()
+	}
+	fn primary_exp(&self) -> Result<AST, String> {
+		match self.get(0) {
+			Some(t) => match t.of.name {
+				Name::ParenLF => self.tuple_exp(),
+				Name::SquarenLF => self.array_exp(),
+				Name::BracketLF => self.graph_exp(),
+				Name::Ref => self.reference(),
+				_ => self.literal(),
+			},
+			None => self.literal(),
+		}
+	}
+
+	fn ref_list(&self, stops: &[Name]) -> Result<AST, String> {
+		let mut refs = vec![];
+
+		self.eat(Name::BracketLF)?;
+		self.clear_stops();
+		while self.until(0, stops) {
+			refs.push(self.reference()?);
+			self.clear_stops();
+		}
+		self.eat(Name::BracketRT)?;
+
+		Ok(AST::Refs(refs))
+	}
+
+	fn reference(&self) -> Result<AST, String> {
+		let t = self.eat(Name::Ref)?;
+		Ok(AST::Ref(t.meta.text.clone()))
+	}
+	fn exp_list(&self, stops: &[Name]) -> Result<Vec<AST>, String> {
+		let mut exps = vec![];
+
+		self.clear_stops();
+		while self.until(0, stops) {
+			exps.push(self.expression()?);
+			self.clear_stops();
+		}
+
+		Ok(exps)
+	}
+
+	fn tuple_exp(&self) -> Result<AST, String> {
+		self.eat(Name::ParenLF)?;
+		let mut exps = self.exp_list(&[Name::ParenRT])?;
+		self.eat(Name::ParenRT)?;
+		if exps.len() == 1 {
+			Ok(exps.pop().unwrap())
+		} else {
+			Ok(AST::Tuple(exps))
+		}
+	}
+
+	fn array_exp(&self) -> Result<AST, String> {
+		self.eat(Name::SquarenLF)?;
+		let exps = self.exp_list(&[Name::SquarenRT])?;
+		self.eat(Name::SquarenRT)?;
+		Ok(AST::Array(exps))
+	}
+
+	fn graph_exp(&self) -> Result<AST, String> {
+		self.eat(Name::BracketLF)?;
+		let points = self.point_list(&[Name::BracketRT])?;
+		self.eat(Name::BracketRT)?;
+		Ok(AST::Graph(points))
 	}
 
 	fn literal(&self) -> Result<AST, String> {
@@ -274,15 +388,16 @@ impl Tokens<'_> {
 	fn eats(&self, names: &[Name]) -> Result<&Token, String> {
 		match self.get(0) {
 			Some(t) => {
-				*self.cursor.borrow_mut() += 1;
-				if self.any(0, names) {
+				let ret = if self.any(0, names) {
 					Ok(t)
 				} else {
 					Err(format!(
 						"UnexpectedToken: {:?} on line {}\nExpected token of name: {:?}",
 						t.meta.text, t.meta.line, t.of.name
 					))
-				}
+				};
+				*self.cursor.borrow_mut() += 1; // must occur after self.any
+				ret
 			}
 			None => Err("UnexpectedEndOfInput".to_string()),
 		}

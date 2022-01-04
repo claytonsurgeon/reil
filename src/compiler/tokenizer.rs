@@ -106,14 +106,18 @@ pub fn precedence(token: &Token) -> u8 {
 	}
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Meta {
 	pub line: u32,
 	pub text: String,
 }
+#[derive(Debug, Clone, PartialEq)]
 pub struct Of {
 	pub kind: Kind,
 	pub name: Name,
 }
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
 	pub of: Of,
 	pub meta: Meta,

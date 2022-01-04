@@ -1,4 +1,4 @@
-use super::tokenizer::{precedence, Class, Name, Token};
+use super::tokenizer::{Kind, Meta, Name, Of, Token};
 use std::cell::RefCell;
 
 pub struct Tokens<'a> {
@@ -6,7 +6,7 @@ pub struct Tokens<'a> {
 	tokens: &'a Vec<Token>,
 }
 
-pub fn parser(tokens: &Vec<Token>) -> AST {
+pub fn parser(tokens: &Vec<Token>) -> Result<AST, String> {
 	let cursor = Tokens {
 		cursor: RefCell::new(0),
 		tokens,
@@ -24,9 +24,7 @@ pub enum AST {
 	Bool(bool),
 	String(String),
 	Number(String),
-	Error(String),
 	Return(Box<AST>),
-	MisplacedExpression(Box<AST>),
 
 	Ref(String),
 	Rep(Box<AST>, Box<AST>), // replicate
@@ -36,313 +34,195 @@ pub enum AST {
 	Nothing,
 }
 
-fn greater_precedence(next_token: &Token, token: &Token) -> bool {
-	// dbg!(precedence(next_token.1), precedence(token.1));
-	precedence(next_token) > precedence(token)
-}
+// type ResAST = Result<AST, String>;
 
 impl Tokens<'_> {
-	fn program(&self) -> AST {
-		AST::Point(
+	fn program(&self) -> Result<AST, String> {
+		Ok(AST::Point(
 			String::from("Program"), // should be file name
-			Box::new(AST::Graph(self.point_list(&[]))),
-		)
+			Box::new(AST::Graph(self.point_list(&[])?)),
+		))
 	}
 
-	fn point_list(&self, stops: &[Name]) -> Vec<AST> {
-		let mut points = vec![];
+	fn point_list(&self, stops: &[Name]) -> Result<Vec<AST>, String> {
+		let mut points: Vec<AST> = vec![];
 
 		self.clear_stops();
 		while self.until(0, stops) {
-			points.push(self.point());
+			points.push(self.point()?);
 			self.clear_stops();
 		}
 
-		match points.last() {
-			Some(AST::MisplacedExpression(exp)) => {
-				let last = AST::Return(exp.clone());
-				points.pop();
-				points.push(last);
-			}
-			_ => {}
-		}
-
-		points
+		// Ok(points)
+		Ok(points)
 	}
 
-	fn exp_list(&self, stops: &[Name]) -> Vec<AST> {
-		let mut exps = vec![];
-
-		self.clear_stops();
-		while self.until(0, stops) {
-			exps.push(self.expression());
-			self.clear_stops();
-		}
-
-		exps
-	}
-
-	fn point(&self) -> AST {
+	fn point(&self) -> Result<AST, String> {
 		// assume a naked expresssion is an error, "disconnected point", if it's the last expression in graph, make it the return point
 
 		self.clear_stops();
-		if self.is(0, Name::Word) && self.is(1, Name::Colon) {
-			let name = self.word_val();
-			self.skip(); // eat ':'
+		if self.is(0, Name::Key) {
+			let text = &self.eat(Name::Key)?.meta.text;
+			let key_text = text[..text.len() - 1].to_string().clone();
 
-			let point = AST::Point(name, Box::new(self.expression()));
+			let point = AST::Point(key_text, Box::new(self.expression()?));
+			// let point = AST::Point(key_text, Box::new(AST::Nothing));
 			self.clear_stops();
-			point
+			Ok(point)
 		} else {
-			let expression = self.expression();
+			self.eat(Name::Arrow)?;
+			let expression = self.expression()?;
 			self.clear_stops();
-			AST::MisplacedExpression(Box::new(expression))
-		}
-	}
-	fn word_val(&self) -> String {
-		match self.eat_of(Class::Word) {
-			Ok(t) => t.2.clone(),
-			Err(e) => e,
+			Ok(expression)
 		}
 	}
 
-	fn expression(&self) -> AST {
+	fn expression(&self) -> Result<AST, String> {
 		self.or_exp()
 	}
 
-	fn pattern_exp(&self) -> AST {
-		let mut left = self.or_exp();
-		while self.is(0, Name::Pattern) {
-			let _ = self.eat_of(Class::Binary);
-			left = AST::Binary(
-				Name::Pattern,
-				Box::new(left),
-				Box::new(self.or_exp()),
-			);
-		}
-
-		left
-	}
-
-	fn or_exp(&self) -> AST {
-		let mut left = self.and_exp();
+	fn or_exp(&self) -> Result<AST, String> {
+		let mut left = self.and_exp()?;
 		while self.is(0, Name::Or) {
-			let _ = self.eat_of(Class::Binary);
+			self.eat(Name::Or)?;
 			left = AST::Binary(
 				Name::Or,
 				Box::new(left),
-				Box::new(self.and_exp()),
+				Box::new(self.and_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn and_exp(&self) -> AST {
-		let mut left = self.equality_exp();
+	fn and_exp(&self) -> Result<AST, String> {
+		let mut left = self.equality_exp()?;
 		while self.is(0, Name::And) {
-			let _ = self.eat_of(Class::Binary);
+			self.eat(Name::And)?;
 			left = AST::Binary(
 				Name::And,
 				Box::new(left),
-				Box::new(self.equality_exp()),
+				Box::new(self.equality_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn equality_exp(&self) -> AST {
-		let mut left = self.relation_exp();
+	fn equality_exp(&self) -> Result<AST, String> {
+		let mut left = self.relation_exp()?;
 		while self.any(0, &[Name::Eq, Name::Ne]) {
-			let t = self.eat_of(Class::Binary).unwrap();
+			let t = self.eat_of(Kind::Binary)?;
 			left = AST::Binary(
-				t.1,
+				t.of.name,
 				Box::new(left),
-				Box::new(self.relation_exp()),
+				Box::new(self.relation_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn relation_exp(&self) -> AST {
-		let mut left = self.additive_exp();
+	fn relation_exp(&self) -> Result<AST, String> {
+		let mut left = self.additive_exp()?;
 		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le]) {
-			let t = self.eat_of(Class::Binary).unwrap();
+			let t = self.eat_of(Kind::Binary)?;
 			left = AST::Binary(
-				t.1,
+				t.of.name,
 				Box::new(left),
-				Box::new(self.additive_exp()),
+				Box::new(self.additive_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn additive_exp(&self) -> AST {
-		let mut left = self.multiplicative_exp();
+	fn additive_exp(&self) -> Result<AST, String> {
+		let mut left = self.multiplicative_exp()?;
 		while self.any(0, &[Name::Add, Name::Sub]) {
-			let t = self.eat_of(Class::Binary).unwrap();
+			let t = self.eat_of(Kind::Binary)?;
 			left = AST::Binary(
-				t.1,
+				t.of.name,
 				Box::new(left),
-				Box::new(self.multiplicative_exp()),
+				Box::new(self.multiplicative_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn multiplicative_exp(&self) -> AST {
-		let mut left = self.exponential_exp();
+	fn multiplicative_exp(&self) -> Result<AST, String> {
+		let mut left = self.exponential_exp()?;
 		while self.any(0, &[Name::Mul, Name::Div]) {
-			let t = self.eat_of(Class::Binary).unwrap();
+			let t = self.eat_of(Kind::Binary).unwrap();
 			left = AST::Binary(
-				t.1,
+				t.of.name,
 				Box::new(left),
-				Box::new(self.exponential_exp()),
+				Box::new(self.exponential_exp()?),
 			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn exponential_exp(&self) -> AST {
-		let mut left = self.unary_exp();
-		while self.any(0, &[Name::Exp]) {
-			let t = self.eat_of(Class::Binary).unwrap();
-			left =
-				AST::Binary(t.1, Box::new(left), Box::new(self.unary_exp()));
+	fn exponential_exp(&self) -> Result<AST, String> {
+		let mut left = self.unary_exp()?;
+		while self.is(0, Name::Exp) {
+			self.eat(Name::Exp)?;
+			left = AST::Binary(
+				Name::Exp,
+				Box::new(left),
+				Box::new(self.unary_exp()?),
+			);
 		}
 
-		left
+		Ok(left)
 	}
 
-	fn unary_exp(&self) -> AST {
+	fn unary_exp(&self) -> Result<AST, String> {
 		if self.any(0, &[Name::Add, Name::Sub, Name::Not]) {
-			let operator = self.eat_any();
-			AST::Unary(operator.1, Box::new(self.unary_exp()))
+			let operator = self.eats(&[Name::Add, Name::Sub, Name::Not])?;
+			Ok(AST::Unary(operator.of.name, Box::new(self.unary_exp()?)))
 		} else {
-			self.replicate_or_select()
+			// self.replicate_or_select()?
+			// Ok(AST::Nothing)
+			Ok(self.literal()?)
 		}
 	}
 
-	fn replicate_or_select(&self) -> AST {
-		let mut ret = self.select_exp();
-		if self.any(0, &[Name::ParenLF, Name::SquarenLF, Name::BracketLF]) {
-			let arg = self.replicate_arg();
-			ret = AST::Rep(Box::new(ret), Box::new(arg));
-		}
-		ret
-		// }
-	}
-
-	fn replicate_arg(&self) -> AST {
-		self.expression()
-	}
-
-	fn select_exp(&self) -> AST {
-		let mut left = self.primary_exp();
-		while self.of(0, Class::Select) {
-			let t = self.eat_of(Class::Select).unwrap();
-			left =
-				AST::Binary(t.1, Box::new(left), Box::new(self.selector()));
-		}
-
-		left
-	}
-	fn selector(&self) -> AST {
-		self.skip()
-	}
-	fn primary_exp(&self) -> AST {
-		// self.skip()
+	fn literal(&self) -> Result<AST, String> {
 		match self.get(0) {
-			Some((_, Name::ParenLF, _)) => self.tuple_exp(),
-			Some((_, Name::SquarenLF, _)) => self.array_exp(),
-			Some((_, Name::BracketLF, _)) => self.graph_exp(),
-			Some((_, Name::Word, _)) => self.reference(),
-			Some(_) => self.literal(),
-			None => self.literal(), // will return error
-		}
-	}
-
-	fn reference(&self) -> AST {
-		match self.eat_of(Class::Word) {
-			Ok(t) => AST::Ref(t.2.clone()),
-			Err(e) => AST::Error(e),
-		}
-	}
-
-	fn tuple_exp(&self) -> AST {
-		// self.skip()
-		let _ = self.eat(Name::ParenLF);
-		let mut exps = self.exp_list(&[Name::ParenRT]);
-		let _ = self.eat(Name::ParenRT);
-		if exps.len() == 1 {
-			exps.pop().unwrap()
-		} else {
-			AST::Tuple(exps)
-		}
-	}
-
-	fn array_exp(&self) -> AST {
-		let _ = self.eat(Name::SquarenLF);
-		let exps = self.exp_list(&[Name::SquarenRT]);
-		let _ = self.eat(Name::SquarenRT);
-		AST::Array(exps)
-	}
-
-	fn graph_exp(&self) -> AST {
-		let _ = self.eat(Name::BracketLF);
-		let points = self.point_list(&[Name::BracketRT]);
-		let _ = self.eat(Name::BracketRT);
-		AST::Graph(points)
-	}
-
-	fn literal(&self) -> AST {
-		match self.get(0) {
-			Some((class, _name, _token)) => match class {
-				Class::Bool => self.bool(),
-				Class::Number => self.number(),
-				Class::String => self.string(),
-				_ => self.unexpected_token(),
+			Some(t) => match t.of.kind {
+				Kind::Bool => self.bool(),
+				Kind::Number => self.number(),
+				Kind::String => self.string(),
+				_ => Err(format!(
+					"UnexpectedToken: {:?} on line {}",
+					t.meta.text.clone(),
+					t.meta.line
+				)),
 			},
-			None => AST::Error("UnexpectedEndOfInput".to_string()),
+			None => Err("UnexpectedEndOfInput".to_string()),
 		}
 	}
 
-	fn unexpected_token(&self) -> AST {
-		match self.next() {
-			Some((class, name, token)) => AST::Error(format!(
-				"UnexpectedToken:  `{}`  {:?} {:?}",
-				token.clone(),
-				class,
-				name
-			)),
-			None => AST::Error("UnexpectedEndOfInput".to_string()),
-		}
+	fn bool(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::Bool)?;
+		Ok(AST::Bool(if t.of.name == Name::True {
+			true
+		} else {
+			false
+		}))
 	}
 
-	fn bool(&self) -> AST {
-		match self.eat_of(Class::Bool) {
-			Ok(t) => AST::Bool(if t.1 == Name::True { true } else { false }),
-			Err(e) => AST::Error(e),
-		}
+	fn number(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::Number)?;
+		Ok(AST::Number(t.meta.text.clone()))
 	}
 
-	fn number(&self) -> AST {
-		match self.eat_of(Class::Number) {
-			Ok(t) => AST::Number(t.2.clone()),
-			Err(e) => AST::Error(e),
-		}
-	}
-
-	fn string(&self) -> AST {
-		match self.eat_of(Class::String) {
-			Ok(t) => AST::String(t.2.clone()),
-			Err(e) => AST::Error(e),
-		}
+	fn string(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::String)?;
+		Ok(AST::String(t.meta.text.clone()))
 	}
 }
 
@@ -362,56 +242,58 @@ impl Tokens<'_> {
 		match self.get(0) {
 			Some(t) => {
 				*self.cursor.borrow_mut() += 1;
-				if t.1 == name {
+				if t.of.name == name {
 					Ok(t)
 				} else {
-					Err(format!("UnexpectedToken: {}", t.2))
+					Err(format!(
+						"UnexpectedToken: {:?} on line {}\nExpected token of name: {:?}",
+						t.meta.text, t.meta.line, t.of.name
+					))
 				}
 			}
 			None => Err("UnexpectedEndOfInput".to_string()),
 		}
 	}
-	fn eat_of(&self, class: Class) -> Result<&Token, String> {
+	fn eat_of(&self, kind: Kind) -> Result<&Token, String> {
 		match self.get(0) {
 			Some(t) => {
 				*self.cursor.borrow_mut() += 1;
-				if t.0 == class {
+				if t.of.kind == kind {
 					Ok(t)
 				} else {
-					Err(format!("UnexpectedToken: {}", t.2))
+					Err(format!(
+						"UnexpectedToken: {:?} on line {}\nExpected token of kind: {:?}",
+						t.meta.text, t.meta.line, t.of.kind
+					))
 				}
 			}
 			None => Err("UnexpectedEndOfInput".to_string()),
 		}
 	}
-	fn skip(&self) -> AST {
-		*self.cursor.borrow_mut() += 1;
-		AST::Nothing
-	}
 
-	fn eat_any(&self) -> &Token {
-		self.next().unwrap()
-	}
-
-	fn clear_newlines(&self) {
-		while self.is(0, Name::Newline) {
-			*self.cursor.borrow_mut() += 1;
+	fn eats(&self, names: &[Name]) -> Result<&Token, String> {
+		match self.get(0) {
+			Some(t) => {
+				*self.cursor.borrow_mut() += 1;
+				if self.any(0, names) {
+					Ok(t)
+				} else {
+					Err(format!(
+						"UnexpectedToken: {:?} on line {}\nExpected token of name: {:?}",
+						t.meta.text, t.meta.line, t.of.name
+					))
+				}
+			}
+			None => Err("UnexpectedEndOfInput".to_string()),
 		}
 	}
+
 	fn clear_stops(&self) {
-		while self.of(0, Class::Stop) {
+		while self.of(0, Kind::Stop) {
 			*self.cursor.borrow_mut() += 1;
 		}
 	}
-	fn next(&self) -> Option<&Token> {
-		if *self.cursor.borrow() < self.tokens.len() {
-			let next_token = Some(&self.tokens[*self.cursor.borrow()]);
-			*self.cursor.borrow_mut() += 1;
-			next_token
-		} else {
-			None
-		}
-	}
+
 	fn get(&self, offset: usize) -> Option<&Token> {
 		if *self.cursor.borrow() + offset < self.tokens.len() {
 			Some(&self.tokens[*self.cursor.borrow() + offset])
@@ -422,67 +304,31 @@ impl Tokens<'_> {
 
 	fn is(&self, offset: usize, stop: Name) -> bool {
 		match self.get(offset) {
-			Some((_, name, _)) => *name == stop,
+			Some(t) => t.of.name == stop,
 			None => false,
 		}
 	}
 
-	fn of(&self, offset: usize, stop: Class) -> bool {
+	fn of(&self, offset: usize, stop: Kind) -> bool {
 		match self.get(offset) {
-			Some((class, _, _)) => *class == stop,
+			Some(t) => t.of.kind == stop,
 			None => false,
 		}
 	}
-
-	fn any(&self, offset: usize, stops: &[Name]) -> bool {
-		for stop in stops {
-			if self.is(offset, *stop) {
+	fn any(&self, offset: usize, names: &[Name]) -> bool {
+		for name in names {
+			if self.is(offset, *name) {
 				return true;
 			}
 		}
 		false
 	}
-
-	fn any_of(&self, offset: usize, stops: &[Class]) -> bool {
-		for stop in stops {
-			if self.of(offset, *stop) {
-				return true;
-			}
-		}
-		false
-	}
-
-	fn _not(&self, offset: usize, stop: Name) -> bool {
-		!self.is(offset, stop)
-	}
-
-	fn _not_of(&self, offset: usize, stop: Class) -> bool {
-		!self.of(offset, stop)
-	}
-
-	// fn not_any(&self, offset: usize, stops: &[Class]) -> bool {
-	// 	let x_stops = [stops, &[Class::Stop]].concat();
-	// 	!self.any(offset, stops)
-	// }
 
 	fn until(&self, offset: usize, stops: &[Name]) -> bool {
 		match self.get(offset) {
-			Some((_, name, _)) => {
+			Some(t) => {
 				for stop in stops {
-					if *name == *stop {
-						return false;
-					}
-				}
-				true
-			}
-			None => false,
-		}
-	}
-	fn until_class(&self, offset: usize, stops: &[Class]) -> bool {
-		match self.get(offset) {
-			Some((class, _, _)) => {
-				for stop in stops {
-					if *class == *stop {
+					if t.of.name == *stop {
 						return false;
 					}
 				}

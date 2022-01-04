@@ -20,3 +20,7 @@ Make it Fast - March
 
 
 tokenize -> parse -> type check -> 
+
+
+language component
+graphics component

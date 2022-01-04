@@ -61,12 +61,16 @@ fn event_router(operation: notify::Op, source: &String, target: &String) {
 			token_path.push_str(&".tokens".to_string());
 			write_file(token_path, &token_string(&tokens));
 			//
-			let parse = parser::parser(&tokens);
 			let parse_path = &mut target.clone();
 			parse_path.push_str(&".ast".to_string());
-			write_file(parse_path, &ast_string(&parse));
-
-			// let parse_path = &target.clone().push_str(&".ast".to_string());
+			match parser::parser(&tokens) {
+				Ok(parse) => {
+					write_file(parse_path, &ast_string(&parse));
+				}
+				Err(msg) => {
+					write_file(parse_path, &msg);
+				}
+			}
 		}
 		_ => {}
 	};
@@ -102,10 +106,11 @@ fn token_string(data: &Vec<Token>) -> String {
 	for group in data {
 		output.push_str(
 			&format!(
-				"{:<12} {:<12} {:?}\n",
-				format!("{:?}", group.0),
-				format!("{:?}", group.1),
-				group.2
+				"{:<12} {:<12} {:<4} {:?}\n",
+				format!("{:?}", group.of.kind),
+				format!("{:?}", group.of.name),
+				group.meta.line,
+				group.meta.text,
 			)[..],
 		)
 	}

@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 
 pub mod compiler;
-use compiler::{parser, tokenizer};
+use compiler::{parser, tokenizer, typer};
 use parser::AST;
 use tokenizer::Token;
 
@@ -61,11 +61,28 @@ fn event_router(operation: notify::Op, source: &String, target: &String) {
 			token_path.push_str(&".tokens".to_string());
 			write_file(token_path, &token_string(&tokens));
 			//
+			//
 			let parse_path = &mut target.clone();
 			parse_path.push_str(&".ast".to_string());
 			match parser::parser(&tokens) {
 				Ok(parse) => {
 					write_file(parse_path, &ast_string(&parse));
+
+					//
+					//
+					let typed_parse_path = &mut target.clone();
+					typed_parse_path.push_str(&".typed".to_string());
+					match typer::typer(&parse) {
+						Ok(typed_parse) => {
+							write_file(
+								typed_parse_path,
+								&ast_string(&typed_parse),
+							);
+						}
+						Err(msg) => {
+							write_file(typed_parse_path, &msg);
+						}
+					}
 				}
 				Err(msg) => {
 					write_file(parse_path, &msg);

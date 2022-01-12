@@ -13,77 +13,29 @@ pub fn parser(tokens: &Vec<Token>) -> Result<AST, String> {
 	};
 	cursor.program()
 }
-#[derive(Debug, Clone)]
-pub enum Number {
-	Integer,
-	Decimal,
-	Boolean,
-	I8,
-	I16,
-	I32,
-	I64,
-	I128,
-	U8,
-	U16,
-	U32,
-	U64,
-	U128,
-	F32,
-	F64,
-	F128,
-}
-
-fn name_to_number(name: Name) -> Number {
-	match name {
-		Name::Decimal => Number::Decimal,
-		Name::Integer => Number::Integer,
-		Name::Boolean => Number::Boolean,
-		_ => panic!("name_to_number should be infallible"),
-	}
-}
 
 #[derive(Debug, Clone)]
 pub enum AST {
-	Nothing,
-	//
-	Number(Number, String),
-	String(String),
-
+	Point(String, Box<AST>),
 	Graph(Vec<AST>),
 	Array(Vec<AST>),
 	Tuple(Vec<AST>),
-	Point(String, u16, bool, Box<AST>), // Label, Index, isReturn, Value
 
-	Op2(Name, Box<AST>, Box<AST>),
-	Op1(Name, Box<AST>),
+	Bool(bool),
+	String(String),
+	Integer(String),
+	Decimal(String),
+	Return(Box<AST>),
+	Arg(Box<AST>),
 
 	Ref(String),
-	Arg(Box<AST>),
-	Rep(Box<AST>, Box<AST>),
-	//
+	Refs(Vec<AST>),
+	Rep(Box<AST>, Box<AST>), // replicate
+
+	Binary(Name, Box<AST>, Box<AST>),
+	Unary(Name, Box<AST>),
+	Nothing,
 }
-
-// pub enum AST {
-// 	Point(String, Box<AST>),
-// 	Graph(Vec<AST>),
-// 	Array(Vec<AST>),
-// 	Tuple(Vec<AST>),
-
-// 	Bool(bool),
-// 	String(String),
-// 	Integer(String),
-// 	Decimal(String),
-// 	Return(Box<AST>),
-// 	Arg(Box<AST>),
-
-// 	Ref(String),
-// 	Refs(Vec<AST>),
-// 	Rep(Box<AST>, Box<AST>), // replicate
-
-// 	Binary(Name, Box<AST>, Box<AST>),
-// 	Unary(Name, Box<AST>),
-// 	Nothing,
-// }
 
 // type ResAST = Result<AST, String>;
 
@@ -91,8 +43,6 @@ impl Tokens<'_> {
 	fn program(&self) -> Result<AST, String> {
 		Ok(AST::Point(
 			String::from("Program"), // should be file name
-			0,
-			false,
 			Box::new(AST::Graph(self.point_list(&[])?)),
 		))
 	}
@@ -101,11 +51,8 @@ impl Tokens<'_> {
 		let mut points: Vec<AST> = vec![];
 
 		self.clear_stops();
-		let mut index = 0;
 		while self.until(0, stops) {
-			let (ast, ispoint) = self.point(index)?;
-			index += if ispoint { 1 } else { 0 };
-			points.push(ast);
+			points.push(self.point()?);
 			self.clear_stops();
 		}
 
@@ -113,36 +60,34 @@ impl Tokens<'_> {
 		Ok(points)
 	}
 
-	fn point(&self, index: u16) -> Result<(AST, bool), String> {
-		self.clear_stops();
+	fn point(&self) -> Result<AST, String> {
+		// assume a naked expresssion is an error, "disconnected point", if it's the last expression in graph, make it the return point
 
-		if self.is(0, Name::Colon) {
+		self.clear_stops();
+		if self.is(0, Name::Key) {
+			let text = &self.eat(Name::Key)?.meta.text;
+			let key_text = text[..text.len() - 1].to_string().clone();
+
+			let point = AST::Point(key_text, Box::new(self.expression()?));
+			// let point = AST::Point(key_text, Box::new(AST::Nothing));
+			self.clear_stops();
+			Ok(point)
+		} else if self.is(0, Name::Colon) {
 			let connection = self.unary_exp()?;
 			self.clear_stops();
-			return Ok((connection, false));
-		}
-
-		let isreturn = self.is(0, Name::Arrow);
-		if isreturn {
+			Ok(connection)
+		} else if self.is(0, Name::Arrow) {
 			self.eat(Name::Arrow)?;
+			let expression = self.expression()?;
+			self.clear_stops();
+			Ok(AST::Return(Box::new(expression)))
+		} else {
+			let expression = self.expression()?;
+			self.clear_stops();
+			Ok(AST::Arg(Box::new(expression)))
 		}
 
-		let label = if self.is(0, Name::Key) {
-			let text = &self.eat(Name::Key)?.meta.text;
-			text[..text.len() - 1].to_string().clone()
-		} else {
-			String::new()
-		};
-
-		let expression = Box::new(if self.is(0, Name::Key) {
-			AST::Nothing
-		} else {
-			let x = self.expression()?;
-			self.clear_stops();
-			x
-		});
-
-		Ok((AST::Point(label, index, isreturn, expression), true))
+		// add support for naked control flow expressions if, match, etc
 	}
 
 	fn expression(&self) -> Result<AST, String> {
@@ -161,7 +106,7 @@ impl Tokens<'_> {
 			| AST::Rep(_, _) => {
 				if self.is(0, Name::Pattern) {
 					self.eat(Name::Pattern)?;
-					left = AST::Op2(
+					left = AST::Binary(
 						Name::Pattern,
 						Box::new(left),
 						Box::new(self.or_exp()?),
@@ -178,8 +123,11 @@ impl Tokens<'_> {
 		let mut left = self.and_exp()?;
 		while self.is(0, Name::Or) {
 			self.eat(Name::Or)?;
-			left =
-				AST::Op2(Name::Or, Box::new(left), Box::new(self.and_exp()?));
+			left = AST::Binary(
+				Name::Or,
+				Box::new(left),
+				Box::new(self.and_exp()?),
+			);
 		}
 
 		Ok(left)
@@ -189,7 +137,7 @@ impl Tokens<'_> {
 		let mut left = self.equality_exp()?;
 		while self.is(0, Name::And) {
 			self.eat(Name::And)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				Name::And,
 				Box::new(left),
 				Box::new(self.equality_exp()?),
@@ -203,7 +151,7 @@ impl Tokens<'_> {
 		let mut left = self.relation_exp()?;
 		while self.any(0, &[Name::Eq, Name::Ne]) {
 			let t = self.eat_of(Kind::Binary)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				t.of.name,
 				Box::new(left),
 				Box::new(self.relation_exp()?),
@@ -217,7 +165,7 @@ impl Tokens<'_> {
 		let mut left = self.additive_exp()?;
 		while self.any(0, &[Name::Gt, Name::Ge, Name::Lt, Name::Le]) {
 			let t = self.eat_of(Kind::Binary)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				t.of.name,
 				Box::new(left),
 				Box::new(self.additive_exp()?),
@@ -231,7 +179,7 @@ impl Tokens<'_> {
 		let mut left = self.multiplicative_exp()?;
 		while self.any(0, &[Name::Add, Name::Sub]) {
 			let t = self.eat_of(Kind::Binary)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				t.of.name,
 				Box::new(left),
 				Box::new(self.multiplicative_exp()?),
@@ -245,7 +193,7 @@ impl Tokens<'_> {
 		let mut left = self.exponential_exp()?;
 		while self.any(0, &[Name::Mul, Name::Div]) {
 			let t = self.eat_of(Kind::Binary).unwrap();
-			left = AST::Op2(
+			left = AST::Binary(
 				t.of.name,
 				Box::new(left),
 				Box::new(self.exponential_exp()?),
@@ -259,7 +207,7 @@ impl Tokens<'_> {
 		let mut left = self.range_exp()?;
 		while self.is(0, Name::Exp) {
 			self.eat(Name::Exp)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				Name::Exp,
 				Box::new(left),
 				Box::new(self.range_exp()?),
@@ -273,7 +221,7 @@ impl Tokens<'_> {
 		let mut left = self.unary_exp()?;
 		while self.is(0, Name::Range) {
 			self.eat(Name::Range)?;
-			left = AST::Op2(
+			left = AST::Binary(
 				Name::Range,
 				Box::new(left),
 				Box::new(self.unary_exp()?),
@@ -307,7 +255,7 @@ impl Tokens<'_> {
 				Name::Lt,
 				Name::Length,
 			])?;
-			Ok(AST::Op1(operator.of.name, Box::new(self.unary_exp()?)))
+			Ok(AST::Unary(operator.of.name, Box::new(self.unary_exp()?)))
 		} else {
 			self.replicate_or_select()
 			// Ok(AST::Nothing)
@@ -326,12 +274,13 @@ impl Tokens<'_> {
 
 	fn select_exp(&self) -> Result<AST, String> {
 		let mut left = self.primary_exp()?;
-		while self.is(0, Name::Select) {
-			let t = self.eat(Name::Select)?;
-			left = AST::Op2(
+		while self.of(0, Kind::Select) {
+			let t = self.eat_of(Kind::Select)?;
+			left = AST::Binary(
 				t.of.name,
 				Box::new(left),
 				Box::new(self.primary_exp()?),
+				// Box::new(self.selector()?),
 			);
 		}
 
@@ -367,22 +316,15 @@ impl Tokens<'_> {
 		Ok(exps)
 	}
 
-	// fn tuple_exp(&self) -> Result<AST, String> {
-	// 	self.eat(Name::ParenLF)?;
-	// 	let mut exps = self.exp_list(&[Name::ParenRT])?;
-	// 	self.eat(Name::ParenRT)?;
-	// 	if exps.len() == 1 {
-	// 		Ok(exps.pop().unwrap())
-	// 	} else {
-	// 		Ok(AST::Tuple(exps))
-	// 	}
-	// }
-
 	fn tuple_exp(&self) -> Result<AST, String> {
 		self.eat(Name::ParenLF)?;
-		let points = self.point_list(&[Name::ParenRT])?;
+		let mut exps = self.exp_list(&[Name::ParenRT])?;
 		self.eat(Name::ParenRT)?;
-		Ok(AST::Graph(points))
+		if exps.len() == 1 {
+			Ok(exps.pop().unwrap())
+		} else {
+			Ok(AST::Tuple(exps))
+		}
 	}
 
 	fn array_exp(&self) -> Result<AST, String> {
@@ -402,7 +344,9 @@ impl Tokens<'_> {
 	fn literal(&self) -> Result<AST, String> {
 		match self.get(0) {
 			Some(t) => match t.of.kind {
-				Kind::Number => self.number(),
+				Kind::Bool => self.bool(),
+				Kind::Decimal => self.decimal(),
+				Kind::Integer => self.integer(),
 				Kind::String => self.string(),
 				_ => Err(format!(
 					"UnexpectedToken: {:?} on line {}",
@@ -414,9 +358,23 @@ impl Tokens<'_> {
 		}
 	}
 
-	fn number(&self) -> Result<AST, String> {
-		let t = self.eat_of(Kind::Number)?;
-		Ok(AST::Number(name_to_number(t.of.name), t.meta.text.clone()))
+	fn bool(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::Bool)?;
+		Ok(AST::Bool(if t.of.name == Name::True {
+			true
+		} else {
+			false
+		}))
+	}
+
+	fn decimal(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::Decimal)?;
+		Ok(AST::Decimal(t.meta.text.clone()))
+	}
+
+	fn integer(&self) -> Result<AST, String> {
+		let t = self.eat_of(Kind::Integer)?;
+		Ok(AST::Integer(t.meta.text.clone()))
 	}
 
 	fn string(&self) -> Result<AST, String> {

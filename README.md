@@ -19,8 +19,18 @@ Make it Good - February
 Make it Fast - March
 
 
-tokenize -> parse -> type check -> 
+tokenizer -> parser -> type checker -> reducer -> reactor
 
 
 language component
 graphics component
+
+
+structurally typed for the sake of simple polymorphism on math operators
+
+
+Language Basics
+```
+
+
+```

@@ -1,108 +1,70 @@
 Point(
     "Program",
+    0,
+    false,
     Graph(
         [
             Point(
-                "bob",
-                Binary(
-                    Select,
-                    Binary(
-                        Parent,
-                        Binary(
-                            Select,
-                            Binary(
-                                Select,
-                                Ref(
-                                    "duck",
-                                ),
-                                Ref(
-                                    "child",
-                                ),
-                            ),
-                            Ref(
-                                "monkey",
-                            ),
-                        ),
-                        Ref(
-                            "parent",
-                        ),
-                    ),
-                    Ref(
-                        "child",
-                    ),
-                ),
-            ),
-            Point(
-                "bob",
-                Binary(
-                    Select,
-                    Ref(
-                        "duck",
-                    ),
-                    Tuple(
-                        [
-                            Ref(
-                                "hello",
-                            ),
-                            Ref(
-                                "hi",
-                            ),
-                            Ref(
-                                "there",
-                            ),
-                        ],
-                    ),
-                ),
-            ),
-            Point(
-                "a",
-                Unary(
-                    Not,
-                    Number(
-                        "10",
-                    ),
-                ),
-            ),
-            Point(
                 "quad",
+                0,
+                false,
                 Graph(
                     [
+                        Op1(
+                            Colon,
+                            Ref(
+                                "name",
+                            ),
+                        ),
                         Point(
                             "a",
+                            0,
+                            false,
                             Number(
+                                Integer,
                                 "0",
                             ),
                         ),
                         Point(
                             "b",
+                            1,
+                            false,
                             Number(
+                                Integer,
                                 "0",
                             ),
                         ),
                         Point(
                             "c",
+                            2,
+                            false,
                             Number(
+                                Integer,
                                 "0",
                             ),
                         ),
                         Point(
                             "discriminant",
-                            Binary(
+                            3,
+                            false,
+                            Op2(
                                 Sub,
-                                Binary(
+                                Op2(
                                     Exp,
                                     Ref(
                                         "b",
                                     ),
                                     Number(
+                                        Integer,
                                         "2",
                                     ),
                                 ),
-                                Binary(
+                                Op2(
                                     Mul,
-                                    Binary(
+                                    Op2(
                                         Mul,
                                         Number(
+                                            Integer,
                                             "4",
                                         ),
                                         Ref(
@@ -117,6 +79,8 @@ Point(
                         ),
                         Point(
                             "rooted",
+                            4,
+                            false,
                             Rep(
                                 Ref(
                                     "sqrt",
@@ -125,6 +89,8 @@ Point(
                                     [
                                         Point(
                                             "x",
+                                            0,
+                                            false,
                                             Ref(
                                                 "discriminant",
                                             ),
@@ -135,9 +101,12 @@ Point(
                         ),
                         Point(
                             "denominator",
-                            Binary(
+                            5,
+                            false,
+                            Op2(
                                 Mul,
                                 Number(
+                                    Integer,
                                     "2",
                                 ),
                                 Ref(
@@ -147,19 +116,30 @@ Point(
                         ),
                         Point(
                             "neg",
-                            Binary(
+                            6,
+                            false,
+                            Op2(
                                 Div,
-                                Binary(
-                                    Sub,
-                                    Unary(
-                                        Sub,
-                                        Ref(
-                                            "b",
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            false,
+                                            Op2(
+                                                Sub,
+                                                Op1(
+                                                    Sub,
+                                                    Ref(
+                                                        "b",
+                                                    ),
+                                                ),
+                                                Ref(
+                                                    "rooted",
+                                                ),
+                                            ),
                                         ),
-                                    ),
-                                    Ref(
-                                        "rooted",
-                                    ),
+                                    ],
                                 ),
                                 Ref(
                                     "denominator",
@@ -168,19 +148,30 @@ Point(
                         ),
                         Point(
                             "pos",
-                            Binary(
+                            7,
+                            false,
+                            Op2(
                                 Div,
-                                Binary(
-                                    Add,
-                                    Unary(
-                                        Sub,
-                                        Ref(
-                                            "b",
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            false,
+                                            Op2(
+                                                Add,
+                                                Op1(
+                                                    Sub,
+                                                    Ref(
+                                                        "b",
+                                                    ),
+                                                ),
+                                                Ref(
+                                                    "rooted",
+                                                ),
+                                            ),
                                         ),
-                                    ),
-                                    Ref(
-                                        "rooted",
-                                    ),
+                                    ],
                                 ),
                                 Ref(
                                     "denominator",
@@ -192,15 +183,25 @@ Point(
             ),
             Point(
                 "result",
+                1,
+                false,
                 Rep(
-                    Ref(
-                        "Math",
+                    Op2(
+                        Select,
+                        Ref(
+                            "Math",
+                        ),
+                        Ref(
+                            "operation",
+                        ),
                     ),
                     Graph(
                         [
                             Point(
-                                "return",
-                                Binary(
+                                "",
+                                0,
+                                false,
+                                Op2(
                                     Add,
                                     Ref(
                                         "a",
@@ -215,235 +216,215 @@ Point(
                 ),
             ),
             Point(
-                "add",
+                "result",
+                2,
+                false,
+                Rep(
+                    Ref(
+                        "Sqrt",
+                    ),
+                    Graph(
+                        [
+                            Point(
+                                "x",
+                                0,
+                                false,
+                                Op2(
+                                    Add,
+                                    Ref(
+                                        "a",
+                                    ),
+                                    Ref(
+                                        "b",
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Point(
+                "stuff",
+                3,
+                false,
                 Graph(
                     [
-                        Point(
-                            "a",
+                        Op1(
+                            Colon,
                             Ref(
-                                "a",
+                                "Math",
                             ),
                         ),
                         Point(
-                            "b",
-                            Number(
-                                "0",
-                            ),
-                        ),
-                        Point(
-                            "return",
-                            Binary(
-                                Add,
+                            "point'a",
+                            0,
+                            false,
+                            Rep(
                                 Ref(
-                                    "a",
+                                    "Point",
                                 ),
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "1",
+                                            ),
+                                        ),
+                                        Point(
+                                            "",
+                                            1,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "2",
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ),
+                        Point(
+                            "point'b",
+                            1,
+                            false,
+                            Rep(
                                 Ref(
-                                    "b",
+                                    "Point",
+                                ),
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "2",
+                                            ),
+                                        ),
+                                        Point(
+                                            "",
+                                            1,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "3",
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ),
+                        Point(
+                            "point'c",
+                            2,
+                            false,
+                            Rep(
+                                Ref(
+                                    "point",
+                                ),
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            true,
+                                            Op2(
+                                                Add,
+                                                Ref(
+                                                    "point'a",
+                                                ),
+                                                Ref(
+                                                    "point'b",
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ),
+                        Point(
+                            "vec3'a",
+                            3,
+                            false,
+                            Rep(
+                                Ref(
+                                    "Vec3",
+                                ),
+                                Graph(
+                                    [
+                                        Point(
+                                            "",
+                                            0,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "10",
+                                            ),
+                                        ),
+                                        Point(
+                                            "",
+                                            1,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "20",
+                                            ),
+                                        ),
+                                        Point(
+                                            "",
+                                            2,
+                                            false,
+                                            Number(
+                                                Integer,
+                                                "30",
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ),
+                        Point(
+                            "vec3'b",
+                            4,
+                            false,
+                            Rep(
+                                Op2(
+                                    Select,
+                                    Ref(
+                                        "vec3",
+                                    ),
+                                    Ref(
+                                        "add",
+                                    ),
+                                ),
+                                Graph(
+                                    [
+                                        Point(
+                                            "a",
+                                            0,
+                                            false,
+                                            Ref(
+                                                "vec3'a",
+                                            ),
+                                        ),
+                                        Point(
+                                            "b",
+                                            1,
+                                            false,
+                                            Ref(
+                                                "vec3'a",
+                                            ),
+                                        ),
+                                    ],
                                 ),
                             ),
                         ),
                     ],
-                ),
-            ),
-            Point(
-                "a",
-                Binary(
-                    Or,
-                    Binary(
-                        And,
-                        Binary(
-                            Add,
-                            Binary(
-                                Div,
-                                Unary(
-                                    Add,
-                                    Number(
-                                        "1",
-                                    ),
-                                ),
-                                Number(
-                                    "4",
-                                ),
-                            ),
-                            Binary(
-                                Mul,
-                                Number(
-                                    "8",
-                                ),
-                                Binary(
-                                    Exp,
-                                    Number(
-                                        "5",
-                                    ),
-                                    Number(
-                                        "2",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        Binary(
-                            Eq,
-                            Binary(
-                                Le,
-                                Number(
-                                    "2",
-                                ),
-                                Unary(
-                                    Not,
-                                    Number(
-                                        "1",
-                                    ),
-                                ),
-                            ),
-                            Binary(
-                                Add,
-                                Binary(
-                                    Exp,
-                                    Number(
-                                        "3",
-                                    ),
-                                    Number(
-                                        "3",
-                                    ),
-                                ),
-                                Number(
-                                    "3",
-                                ),
-                            ),
-                        ),
-                    ),
-                    Binary(
-                        And,
-                        Binary(
-                            Eq,
-                            Unary(
-                                Sub,
-                                Number(
-                                    "1",
-                                ),
-                            ),
-                            Binary(
-                                Ge,
-                                Number(
-                                    "3",
-                                ),
-                                Number(
-                                    "4",
-                                ),
-                            ),
-                        ),
-                        Binary(
-                            Ne,
-                            Number(
-                                "5",
-                            ),
-                            Binary(
-                                Sub,
-                                Number(
-                                    "6",
-                                ),
-                                Number(
-                                    "1",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-            Point(
-                "a",
-                Binary(
-                    Or,
-                    Binary(
-                        And,
-                        Binary(
-                            Add,
-                            Binary(
-                                Div,
-                                Number(
-                                    "1",
-                                ),
-                                Number(
-                                    "4",
-                                ),
-                            ),
-                            Binary(
-                                Mul,
-                                Number(
-                                    "8",
-                                ),
-                                Binary(
-                                    Exp,
-                                    Number(
-                                        "5",
-                                    ),
-                                    Number(
-                                        "2",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        Binary(
-                            Eq,
-                            Binary(
-                                Le,
-                                Number(
-                                    "2",
-                                ),
-                                Number(
-                                    "1",
-                                ),
-                            ),
-                            Binary(
-                                Add,
-                                Binary(
-                                    Exp,
-                                    Number(
-                                        "3",
-                                    ),
-                                    Number(
-                                        "3",
-                                    ),
-                                ),
-                                Number(
-                                    "3",
-                                ),
-                            ),
-                        ),
-                    ),
-                    Binary(
-                        And,
-                        Binary(
-                            Eq,
-                            Number(
-                                "1",
-                            ),
-                            Binary(
-                                Ge,
-                                Number(
-                                    "3",
-                                ),
-                                Number(
-                                    "4",
-                                ),
-                            ),
-                        ),
-                        Binary(
-                            Ne,
-                            Number(
-                                "5",
-                            ),
-                            Binary(
-                                Sub,
-                                Number(
-                                    "6",
-                                ),
-                                Number(
-                                    "1",
-                                ),
-                            ),
-                        ),
-                    ),
                 ),
             ),
         ],

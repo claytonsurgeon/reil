@@ -11,11 +11,11 @@ pub enum Kind {
 	Binary,
 	Unary,
 	Select,
+	Range,
 	//
 	Label,
 	Reserved,
 	//
-	Bool,
 	String,
 	Number,
 	//
@@ -31,7 +31,6 @@ pub enum Name {
 	Newline,
 	Comma,
 	//
-	Colon,
 	Pattern,
 	//
 	Or,
@@ -50,18 +49,22 @@ pub enum Name {
 	Ge,
 	Le,
 	//
+	Colon,
+	Length,
+	//
 	Select,
-	Parent,
+	// Parent, // shouldn't be needed
+	Range,
 	//
 	Key,
 	Ref,
 	Arrow,
 	Reserved,
 	//
-	True,
-	False,
 	String,
-	Number,
+	Integer,
+	Decimal,
+	Boolean,
 	//
 	ParenLF,
 	ParenRT,
@@ -69,41 +72,6 @@ pub enum Name {
 	SquarenRT,
 	BracketLF,
 	BracketRT,
-}
-
-// 0 is lowest precendence, 255 is highest
-// 255 is used for non binary operations
-
-pub fn precedence(token: &Token) -> u8 {
-	use Name::*;
-	match token.of.name {
-		Colon => 0,
-		Arrow => 0,
-		Pattern => 1,
-		//
-		Or => 2,
-		And => 3,
-
-		Eq => 4,
-		Ne => 4,
-
-		Gt => 5,
-		Lt => 5,
-		Ge => 5,
-		Le => 5,
-
-		Add => 6,
-		Sub => 6,
-		Mul => 7,
-		Div => 7,
-		Exp => 8,
-		// Not => 9,
-		//
-		//
-		Select => 9,
-		Parent => 9,
-		_ => 0,
-	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,7 +97,7 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 			vec![
 				(Kind::Stop, Name::Newline, Regex::new(r"^\n").unwrap()),
 				(Kind::Skip, Name::Skip, Regex::new(r"^\r").unwrap()),
-				(Kind::Stop, Name::Comma, Regex::new(r"^(,|;)+").unwrap()),
+				(Kind::Stop, Name::Comma, Regex::new(r"^(,|;)").unwrap()),
 				(Kind::Skip, Name::Skip, Regex::new(r"^[[:blank:]]+").unwrap()),
 				// Comments
 				(Kind::Skip, Name::Skip, Regex::new(r"^//.*").unwrap()),
@@ -138,24 +106,33 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 				// Labels
 				// should support redefining operators, just the basics for now
 				(Kind::Label, Name::Key, Regex::new(r"^[*/+-]:").unwrap()),
-				(Kind::Label, Name::Key, Regex::new(r"^[A-Za-z][A-Za-z0-9]*:").unwrap()),
+				(Kind::Label, Name::Key, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*:").unwrap()),
 
-				(Kind::Label, Name::Ref, Regex::new(r"^[A-Za-z][A-Za-z0-9]*").unwrap()),
+
+				(Kind::Label, Name::Ref, Regex::new(r"^[A-Za-z'_][A-Za-z0-9'_]*").unwrap()),
 				(Kind::Label, Name::Arrow, Regex::new(r"^(->|→)").unwrap()),
 
 				// Numbers
-				(Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]+\.[0-9]*").unwrap()),
-				(Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]*\.[0-9]+").unwrap()),
-				(Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]+").unwrap()),
+				// (Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]+\.[0-9]*").unwrap()),
+				// (Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]*\.[0-9]+").unwrap()),
+				// (Kind::Number, Name::Number, Regex::new(r"^\-?[0-9]+").unwrap()),
+				(Kind::Binary, Name::Range, Regex::new(r"^\.\.").unwrap()),
+
+				// (Kind::Binary, Name::Range, Regex::new(r"^[0-9]+\.\.[0-9]*").unwrap()),
+				// (Kind::Binary, Name::Range, Regex::new(r"^[0-9]*\.\.[0-9]+").unwrap()),
+
+				// (Kind::Number, Name::Number, Regex::new(r"^[0-9]+\.[0-9]*").unwrap()),
+				(Kind::Number, Name::Decimal, Regex::new(r"^[0-9']+\.[0-9']+").unwrap()),
+				(Kind::Number, Name::Integer, Regex::new(r"^[0-9']+").unwrap()),
+				(Kind::Number, Name::Boolean, Regex::new(r"^(false|true)\b").unwrap()),
 
 				// Reserved Words
 				(Kind::Reserved, Name::Reserved, Regex::new(r"^if\b").unwrap()),
 				(Kind::Reserved, Name::Reserved, Regex::new(r"^else\b").unwrap()),
 
-				(Kind::Bool, Name::True, Regex::new(r"^true\b").unwrap()),
-				(Kind::Bool, Name::False, Regex::new(r"^false\b").unwrap()),
+				// (Kind::Bool, Name::True, Regex::new(r"^true\b").unwrap()),
+				// (Kind::Bool, Name::False, Regex::new(r"^false\b").unwrap()),
 				// Operators
-				(Kind::Binary, Name::Colon, Regex::new(r"^[:]").unwrap()),
 				(Kind::Binary, Name::Pattern, Regex::new(r"^[~]").unwrap()),
 				(Kind::Binary, Name::Or, Regex::new(r"^[|]").unwrap()),
 				(Kind::Binary, Name::And, Regex::new(r"^[&]").unwrap()),
@@ -163,15 +140,19 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 				(Kind::Binary, Name::Ne, Regex::new(r"^(!=)").unwrap()),
 				(Kind::Binary, Name::Ge, Regex::new(r"^(>=)").unwrap()),
 				(Kind::Binary, Name::Le, Regex::new(r"^(<=)").unwrap()),
-				(Kind::Binary, Name::Lt, Regex::new(r"^(>)").unwrap()),
-				(Kind::Binary, Name::Le, Regex::new(r"^(<)").unwrap()),
+				(Kind::Binary, Name::Gt, Regex::new(r"^(>)").unwrap()),
+				(Kind::Binary, Name::Lt, Regex::new(r"^(<)").unwrap()),
 				(Kind::Binary, Name::Add, Regex::new(r"^(\+)").unwrap()),
 				(Kind::Binary, Name::Sub, Regex::new(r"^(-)").unwrap()),
 				(Kind::Binary, Name::Mul, Regex::new(r"^(\*)").unwrap()),
 				(Kind::Binary, Name::Div, Regex::new(r"^(/)").unwrap()),
 				(Kind::Binary, Name::Exp, Regex::new(r"^(\^)").unwrap()),
 				(Kind::Unary, Name::Not, Regex::new(r"^(!)").unwrap()),
-				(Kind::Select, Name::Parent, Regex::new(r"^[.][.]").unwrap()),
+				(Kind::Unary, Name::Length, Regex::new(r"^#").unwrap()),
+				(Kind::Unary, Name::Colon, Regex::new(r"^:").unwrap()),
+
+
+				// (Kind::Select, Name::Parent, Regex::new(r"^[.][.]").unwrap()),
 				(Kind::Select, Name::Select, Regex::new(r"^[.]").unwrap()),
 
 
@@ -230,10 +211,10 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 							}
 							if !last_token_was_comma {
 								tokens.push(t);
+								last_token_was_operator = false;
+								last_token_was_comma = true;
+								last_token_was_newline = false;
 							}
-							last_token_was_operator = false;
-							last_token_was_comma = true;
-							last_token_was_newline = false;
 						}
 						(Kind::Stop, Name::Newline) => {
 							if !last_token_was_operator
@@ -241,12 +222,87 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 								&& !skip_initial_newlines
 							{
 								tokens.push(t);
+								last_token_was_operator = false;
+								last_token_was_comma = false;
+								last_token_was_newline = true;
 							}
-							last_token_was_operator = false;
-							last_token_was_comma = false;
-							last_token_was_newline = true;
 							line += 1;
 						}
+
+						// (Kind::Binary, Name::Range) => {
+						// 	if last_token_was_newline {
+						// 		tokens.pop();
+						// 	}
+						// 	if t.meta.text.len() > 2 {
+						// 		let range: Vec<&str> =
+						// 			t.meta.text.split("..").collect();
+						// 		if t.meta.text.as_bytes()[0] == ".".as_bytes()[0] {
+						// 			// ..end
+						// 			let operand = range[0];
+						// 			tokens.push(Token {
+						// 				of: Of {
+						// 					kind: Kind::Range,
+						// 					name: Name::Range,
+						// 				},
+						// 				meta: Meta {
+						// 					line,
+						// 					text: String::from(".."),
+						// 				},
+						// 			});
+						// 			tokens.push(Token {
+						// 				of: Of {
+						// 					kind: Kind::Number,
+						// 					name: Name::Number,
+						// 				},
+						// 				meta: Meta {
+						// 					line,
+						// 					text: String::from(operand),
+						// 				},
+						// 			});
+						// 		} else {
+						// 			// start.. or start..end
+						// 			let operand = range[0];
+						// 			tokens.push(Token {
+						// 				of: Of {
+						// 					kind: Kind::Number,
+						// 					name: Name::Number,
+						// 				},
+						// 				meta: Meta {
+						// 					line,
+						// 					text: String::from(operand),
+						// 				},
+						// 			});
+						// 			tokens.push(Token {
+						// 				of: Of {
+						// 					kind: Kind::Range,
+						// 					name: Name::Range,
+						// 				},
+						// 				meta: Meta {
+						// 					line,
+						// 					text: String::from(".."),
+						// 				},
+						// 			});
+						// 			if range.len() > 1 {
+						// 				let operand = range[1];
+						// 				tokens.push(Token {
+						// 					of: Of {
+						// 						kind: Kind::Number,
+						// 						name: Name::Number,
+						// 					},
+						// 					meta: Meta {
+						// 						line,
+						// 						text: String::from(operand),
+						// 					},
+						// 				});
+						// 			}
+						// 		}
+						// 	} else {
+						// 		tokens.push(t);
+						// 	}
+						// 	last_token_was_operator = true;
+						// 	last_token_was_comma = false;
+						// 	last_token_was_newline = false;
+						// }
 						(Kind::Binary, _)
 						| (Kind::Unary, _)
 						| (Kind::Select, _)

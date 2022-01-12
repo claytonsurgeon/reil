@@ -229,80 +229,27 @@ pub fn tokenizer(input: &String) -> Vec<Token> {
 							line += 1;
 						}
 
-						// (Kind::Binary, Name::Range) => {
-						// 	if last_token_was_newline {
-						// 		tokens.pop();
-						// 	}
-						// 	if t.meta.text.len() > 2 {
-						// 		let range: Vec<&str> =
-						// 			t.meta.text.split("..").collect();
-						// 		if t.meta.text.as_bytes()[0] == ".".as_bytes()[0] {
-						// 			// ..end
-						// 			let operand = range[0];
-						// 			tokens.push(Token {
-						// 				of: Of {
-						// 					kind: Kind::Range,
-						// 					name: Name::Range,
-						// 				},
-						// 				meta: Meta {
-						// 					line,
-						// 					text: String::from(".."),
-						// 				},
-						// 			});
-						// 			tokens.push(Token {
-						// 				of: Of {
-						// 					kind: Kind::Number,
-						// 					name: Name::Number,
-						// 				},
-						// 				meta: Meta {
-						// 					line,
-						// 					text: String::from(operand),
-						// 				},
-						// 			});
-						// 		} else {
-						// 			// start.. or start..end
-						// 			let operand = range[0];
-						// 			tokens.push(Token {
-						// 				of: Of {
-						// 					kind: Kind::Number,
-						// 					name: Name::Number,
-						// 				},
-						// 				meta: Meta {
-						// 					line,
-						// 					text: String::from(operand),
-						// 				},
-						// 			});
-						// 			tokens.push(Token {
-						// 				of: Of {
-						// 					kind: Kind::Range,
-						// 					name: Name::Range,
-						// 				},
-						// 				meta: Meta {
-						// 					line,
-						// 					text: String::from(".."),
-						// 				},
-						// 			});
-						// 			if range.len() > 1 {
-						// 				let operand = range[1];
-						// 				tokens.push(Token {
-						// 					of: Of {
-						// 						kind: Kind::Number,
-						// 						name: Name::Number,
-						// 					},
-						// 					meta: Meta {
-						// 						line,
-						// 						text: String::from(operand),
-						// 					},
-						// 				});
-						// 			}
-						// 		}
-						// 	} else {
-						// 		tokens.push(t);
-						// 	}
-						// 	last_token_was_operator = true;
-						// 	last_token_was_comma = false;
-						// 	last_token_was_newline = false;
-						// }
+						(Kind::Paren, Name::ParenLF)
+						| (Kind::Squaren, Name::SquarenLF)
+						| (Kind::Bracket, Name::BracketLF) => {
+							tokens.push(t);
+							last_token_was_operator = true;
+							last_token_was_comma = false;
+							last_token_was_newline = false;
+						}
+
+						(Kind::Paren, Name::ParenRT)
+						| (Kind::Squaren, Name::SquarenRT)
+						| (Kind::Bracket, Name::BracketRT) => {
+							if last_token_was_newline {
+								tokens.pop();
+							}
+							tokens.push(t);
+							last_token_was_operator = false;
+							last_token_was_comma = false;
+							last_token_was_newline = false;
+						}
+
 						(Kind::Binary, _)
 						| (Kind::Unary, _)
 						| (Kind::Select, _)

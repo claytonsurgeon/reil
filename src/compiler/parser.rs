@@ -341,7 +341,7 @@ impl Tokens<'_> {
 	fn primary_exp(&self) -> Result<AST, String> {
 		match self.get(0) {
 			Some(t) => match t.of.name {
-				Name::ParenLF => self.tuple_exp(),
+				Name::ParenLF => self.paren_exp(),
 				Name::SquarenLF => self.array_exp(),
 				Name::BracketLF => self.graph_exp(),
 				Name::Ref => self.reference(),
@@ -378,11 +378,11 @@ impl Tokens<'_> {
 	// 	}
 	// }
 
-	fn tuple_exp(&self) -> Result<AST, String> {
+	fn paren_exp(&self) -> Result<AST, String> {
 		self.eat(Name::ParenLF)?;
-		let points = self.point_list(&[Name::ParenRT])?;
+		let expression = self.expression()?;
 		self.eat(Name::ParenRT)?;
-		Ok(AST::Graph(points))
+		Ok(expression)
 	}
 
 	fn array_exp(&self) -> Result<AST, String> {

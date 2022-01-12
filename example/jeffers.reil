@@ -9,20 +9,39 @@ quad: { :name
 	pos: (-b + rooted) / denominator
 }
 
-result: Math.operation { a + b }
+result: Math.operation {
+	a + b
+}
 
 result: Sqrt { x: a + b }
 
-
-stuff: { :Math
-	point'a: Point(1, 2)
-	point'b: Point(2, 3)
-
-	point'c: point {
-		->	point'a + point'b
+Math: {
+	Point {a: i32, b: i32}
+	point: {
+		+: { a: b: Point -> Point{a.a + a.b, b.a + b.b} }
+		-: { a: b: Point -> Point{a.a - a.b, b.a - b.b} }
+		*: { a: b: Point -> Point{a.a * a.b, b.a * b.b} }
+		/: { a: b: Point -> Point{a.a / a.b, b.a / b.b} }
 	}
 
-	vec3'a: Vec3(10, 20, 30)
+	Vec'3: {x: y: z: 0}
+	vec'3: {
+		add: { a: b: Vec'3 -> a + b }
+		sub: { a: b: Vec'3 -> a - b }
+		mul: { a: b: Vec'3 -> a * b }
+		div: { a: b: Vec'3 -> a / b }
+	}
+}
+
+stuff: { :Math
+	point'a: Point{1, 2}
+	point'b: Point{2, 3}
+
+	point'c: point (
+		point'a + point'b
+	)
+
+	vec3'a: Vec3{10, 20, 30}
 	vec3'b: vec3.add {
 		a: vec3'a
 		b: vec3'a

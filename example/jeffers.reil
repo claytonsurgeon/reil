@@ -1,4 +1,6 @@
 
+
+
 quad: { :name
 	a:0, b:0, c:0
 	discriminant: b^2 - 4*a*c

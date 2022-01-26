@@ -5,8 +5,22 @@ Point(
     Graph(
         [
             Point(
-                "quad",
+                "a",
                 0,
+                false,
+                Rep(
+                    Ref(
+                        "duck",
+                    ),
+                    Number(
+                        Integer,
+                        "10",
+                    ),
+                ),
+            ),
+            Point(
+                "quad",
+                1,
                 false,
                 Graph(
                     [
@@ -165,7 +179,7 @@ Point(
             ),
             Point(
                 "result",
-                1,
+                2,
                 false,
                 Rep(
                     Op2(
@@ -199,7 +213,7 @@ Point(
             ),
             Point(
                 "result",
-                2,
+                3,
                 false,
                 Rep(
                     Ref(
@@ -227,7 +241,7 @@ Point(
             ),
             Point(
                 "Math",
-                3,
+                4,
                 false,
                 Graph(
                     [
@@ -818,7 +832,7 @@ Point(
             ),
             Point(
                 "stuff",
-                4,
+                5,
                 false,
                 Graph(
                     [

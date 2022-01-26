@@ -1,6 +1,10 @@
 
 ## Reil: Reactive Interface Language
 
+
+###### moved to: https://github.com/claytonsurgeon/rpl
+ 
+
 Language meant to be an 80% solution. A 
 
 
